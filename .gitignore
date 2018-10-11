@@ -1,0 +1,13 @@
+
+#
+/log/ 
+
+#
+/docs/ 
+
+# sublime ide filese
+*.sublime-workspace
+*.sublime-project
+
+#
+*_config.php
