@@ -1,13 +1,13 @@
 
-#
-/log/ 
-
-#
+#---  Work documents for project
 /docs/ 
 
-# sublime ide filese
+#---  Directory for log files
+/log/ 
+
+#---  Sublime ide filese
 *.sublime-workspace
 *.sublime-project
 
-#
+#---  Work config files
 *_config.php

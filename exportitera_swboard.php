@@ -1,5 +1,5 @@
 <?php
-const SCRIPTVERSION = "v.0.1";
+const SCRIPTVERSION = "v.0.2";
 const SCRIPTNAME="exportitera_swboard";
 require_once 'ExportIteraLib.php';
 
@@ -12,7 +12,7 @@ function UpdateDBRec($id)
 	$sql = "UPDATE elevator_gallery SET iteraexporttime = now() WHERE id=".$id.";";
 	logger("UPDATE elevator_gallery for ".$id);
 	if( FALSE == mysql_query($sql) ) 
-		logger("Can't UPDATE elevator_gallery for !");
+		logger("Can't UPDATE elevator_gallery for id=".$id."!");
 }
 
 //--------------------------------------------------------------------------------------
@@ -102,7 +102,7 @@ function SendFileToItera($picrec)
 function MAIN_LOOP(){
 
 	$sql = "SELECT el.elremoteid, eg.* FROM elevators.elevator_gallery eg JOIN elevator el ON el.id = eg.elevator_id WHERE eg.iteraexporttime IS NULL AND el.elremoteid IS NOT NULL;";
-	logger($sql);
+	logger("SQL: "$sql);
 
 	if( FALSE !== ( $cursor = mysql_query($sql) ) ) {
 		$num_rows = mysql_num_rows($cursor);

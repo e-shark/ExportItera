@@ -44,7 +44,7 @@ function logger($message)
 	global $config;
 	global $LogPath;
 
-	$dbgfn = (empty($LogPath)?__DIR__:$LogPath).DIRECTORY_SEPARATOR.date('ymd_').basename(__FILE__,".php")."dbg.txt";
+	$dbgfn = (empty($LogPath)?__DIR__:$LogPath).DIRECTORY_SEPARATOR.date('ymd_').SCRIPTNAME."dbg.txt";
 	
 	if ($config['options']['conlog']) echo stripWhitespaces($message)."\n";
 	
@@ -203,7 +203,10 @@ function MAIN_START()
 	if ( mysql_select_db($config['db']['dbname']) ) {
 
 		if (empty($config['options']['exectout'])) 
-			$config['options']['exectout'] = 30;
+			$config['options']['exectout'] = 30;			// По умолчанию разрешаем скрипту работать не более 30 минут
+
+		if (empty($config['options']['skiptransfer'])) 		// По умолчанию запрещаем отсылку данных
+			$config['options']['skiptransfer'] = true;
 
 	    if (ChekFoStartPermission()) {
 			if (LoginForItera()) {
