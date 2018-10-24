@@ -75,7 +75,7 @@ function SetLogPath($path){
 //	Проверяет, не запущена ли уже копия задачи,
 //  если копий нет, ставит в базе отметку о запуске
 //--------------------------------------------------------------------------------------
-function ChekFoStartPermission()
+function ChekForStartPermission()
 {
 	global $config;
 	$res = false;
@@ -86,8 +86,8 @@ function ChekFoStartPermission()
     		// Есть запись. Значит задача уже запускалась
     		$dsrow = mysql_fetch_assoc( $dscursor );
     		// Проверяем, как давно был запуск задачи
-    		if ( is_null($dsrow['extime']) || ($dsrow['extime'] > $config['options']['exectout']) ) {
-    			if (($dsrow['extime'] > $config['options']['exectout']))
+    		if ( is_null($dsrow['extime']) || ($dsrow['extime'] > $config['options']['exectout']+1) ) {
+    			if (($dsrow['extime'] > $config['options']['exectout']+1))
     				logger("StartTime label (".$dsrow['extime']." min ago) out of timeout (".($config['options']['exectout'])." min) !");
     			// Превыщен лимит. Подразумеваем, что процесс, оставивший пометку в базе, просто звершился крахом, не успев снять пометку из базы
     			$sql = "UPDATE batchscriptlog SET starttime = now() WHERE scriptname='".SCRIPTNAME."'; ";
@@ -205,10 +205,12 @@ function MAIN_START()
 		if (empty($config['options']['exectout'])) 
 			$config['options']['exectout'] = 30;			// По умолчанию разрешаем скрипту работать не более 30 минут
 
-		if (empty($config['options']['skiptransfer'])) 		// По умолчанию запрещаем отсылку данных
+		if (is_null($config['options']['skiptransfer'])) 		// По умолчанию запрещаем отсылку данных
 			$config['options']['skiptransfer'] = true;
+		if ($config['options']['skiptransfer'])
+			logger("Option skiptransfer is enabled!" );
 
-	    if (ChekFoStartPermission()) {
+	    if (ChekForStartPermission()) {
 			if (LoginForItera()) {
 
 				MAIN_LOOP();
@@ -252,7 +254,7 @@ function MAIN_LOOP_Example()
 
 
 				//usleep(100e3);	// задержка на 100 миллисекунд
-				//if ($COUNT>5) break;	// !!! ДЛЯ ОТЛАДКИ
+				//if ($COUNT>5) {logger("Stopped by debug mode!"); break;}	// !!! ДЛЯ ОТЛАДКИ
 				if ($COUNT % 10 == 0) logger("next 10 (".$COUNT.")");
 
 				// Проверка на время выполнения скрипта

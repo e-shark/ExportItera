@@ -56,7 +56,7 @@ function SendFileToItera($picrec)
 	// отправляем данные
 	$iteraAPIurl = $config['bsmartapi']['url_addphoto'];
 	$postdata=[			
-		'@device_id' => $picrec['elremoteid'],
+		'@device_id' => $picrec['iteraswbid'],
 		'@created' => $time,
 		'@description' => $picrec['fclientname'],
 		'@image' => $data64,
@@ -101,8 +101,14 @@ function SendFileToItera($picrec)
 //--------------------------------------------------------------------------------------
 function MAIN_LOOP(){
 
-	$sql = "SELECT el.elremoteid, eg.* FROM elevators.elevator_gallery eg JOIN elevator el ON el.id = eg.elevator_id WHERE eg.iteraexporttime IS NULL AND el.elremoteid IS NOT NULL;";
-	logger("SQL: "$sql);
+	$sql = "SELECT eg.*, el.elremoteid, cr.iteraswbid
+			FROM elevator_gallery eg 
+			JOIN elevator el ON el.id = eg.elevator_id 
+			JOIN cross_itera_switchboard cr ON cr.devid = el.id
+			WHERE eg.iteraexporttime IS NULL AND cr.iteraswbid IS NOT NULL;";
+	logger("SQL: ",$sql);
+
+	$cntSent = 0;
 
 	if( FALSE !== ( $cursor = mysql_query($sql) ) ) {
 		$num_rows = mysql_num_rows($cursor);
@@ -114,11 +120,13 @@ function MAIN_LOOP(){
 				logger("--------------------------------------------------------");
 				$COUNT += 1;
 
-				if ( SendFileToItera($row) ) 
+				if ( SendFileToItera($row) ) {
 					UpdateDBRec($row['id']);
+					$cntSent++;
+				}
 
 				//usleep(100e3);	// задержка на 100 миллисекунд
-				//if ($COUNT>5) break;	// !!! ДЛЯ ОТЛАДКИ
+				//if ($COUNT>2) break;	// !!! ДЛЯ ОТЛАДКИ
 				if ($COUNT % 10 == 0) logger("next 10 (".$COUNT.")");
 
 				// Проверка на время выполнения скрипта
@@ -128,8 +136,9 @@ function MAIN_LOOP(){
 		}
 		mysql_free_result($cursor);	
 		//logger("Exported  successfully ".$counerDone." of ".$counerAll." records");
+		logger("Images have been sent: ".$cntSent);
 	}else{
-		logger("Can't read table");
+		logger("Can't read table from DB");
 	}
 
 }

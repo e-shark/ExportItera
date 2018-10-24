@@ -23,7 +23,7 @@ function GetIteraMeters()
 	if(FALSE!==$result)
 	{
 		$result = mb_convert_encoding($result,'UTF-8');
-		$jsonAnswer = json_decode($result,true);
+		$jsonAnswer = json_decode($result, true);
 		if(!empty($jsonAnswer)) {
 			$res = $jsonAnswer;
 			//logger(serialize($res));
@@ -39,11 +39,15 @@ function GetIteraMeters()
 
 //--------------------------------------------------------------------------------------
 //	Найти в нашей базе счетчик с указанныс серийным номером
+//	Model - название модели счетчика (нужно для верной идентификации счетчика)
+//	SN - серийный номер счетчика
+//	Возвращает запись БД со счетчиком. 
 //--------------------------------------------------------------------------------------
 function FindDBMeterBySN($Model, $SN)
 {
 	$res = false;
-	$sql = "SELECT * FROM powermeter WHERE meterserialno = $SN AND metermodel = $Model ;";
+	$sql = "SELECT * FROM powermeter WHERE meterserialno = $SN AND metermodel = '$Model' ;";
+	//logger("find sql: $sql");
 	if( FALSE !== ( $cursor = mysql_query($sql) ) ) {
 		$row = mysql_fetch_assoc( $cursor ); 
 		if (!empty($row)){
@@ -51,11 +55,11 @@ function FindDBMeterBySN($Model, $SN)
 		}
 		mysql_free_result($cursor);	
 	}
-
 	return $res;
 }
 
 //--------------------------------------------------------------------------------------
+//	Прописа RemoteID для счетчика в базе 
 //--------------------------------------------------------------------------------------
 function DBMeterUpdateRID($MID,$MRID)
 {
@@ -84,10 +88,10 @@ function MAIN_LOOP()
 		foreach($IteraMeterList["Records"] as $rec){
 			$CountAll++;
 			$lsh = "IteraID: ".$rec["id"]." serial:".$rec["device_no"]." => ";
-			$dbmeter = FindDBMeterBySN( $rec["device_no"], $rec["device_no"]  );
+			$dbmeter = FindDBMeterBySN( $rec["counter_type"], $rec["device_no"]  );
 			if (!empty($dbmeter)){
 				if (empty($dbmeter["meterremoteid"])){
-					if ( DBMeterUpdateRID($dbmeter["counter_type"], $rec["id"]) ){
+					if ( DBMeterUpdateRID($dbmeter["id"], $rec["id"]) ){
 						$CountAdded++;
 						logger($lsh." successful update rid for meter dbID:".$dbmeter["id"]);
 					}else{
@@ -100,7 +104,7 @@ function MAIN_LOOP()
 				}
 			}else{
 				$CountNotFound++;
-				logger($lsh." meter with this serial not fount in DB");
+				logger($lsh." meter '".$rec["counter_type"]."' with this serial not fount in DB");
 			}
 
 			//if ($CountAll % 10 == 0)  logger("next 10 (".$CountAll.")");
