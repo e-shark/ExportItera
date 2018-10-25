@@ -74,7 +74,7 @@ function ProcessMeterData($rec)
 	if ( SendMeterDataToItera($rec) ) {
 		UpdateDBRec($rec['id']);
 		$res = true;
-		usleep(100e3);		// Небольшая задержка (100 миллисекунд), чтобы не очень насиловать сервера
+		//usleep(100e3);		// Небольшая задержка (100 миллисекунд), чтобы не очень насиловать сервера
 	}
 
 	return $res;
@@ -108,12 +108,14 @@ function MAIN_LOOP()
 		if ($num_rows > 0) {
 
 			$COUNT = 0;
+			$CountSend = 0;
 			while( $row = mysql_fetch_assoc( $cursor ) ) {
 				$COUNT += 1;
 				if ($config['options']['debug']) logger("--------------------------------------------------------");
 
-				ProcessMeterData($row); 								// Обрабатываем очередную запись
-
+				if (ProcessMeterData($row)) 								// Обрабатываем очередную запись
+					$CountSend++;
+					
 				//usleep(100e3);	// задержка на 100 миллисекунд
 				//if ($COUNT>0) {logger("Stopped by debug mode!"); break;}	// !!! ДЛЯ ОТЛАДКИ
 				//if ($COUNT % 10 == 0) logger("next 10 (".$COUNT.")");
@@ -124,7 +126,7 @@ function MAIN_LOOP()
 			} //while
 		}
 		mysql_free_result($cursor);	
-		//logger("Exported  successfully ".$counerDone." of ".$counerAll." records");
+		logger("Exported  successfully ".$CountSend." of ".$COUNT." records");
 	}else{
 		logger("Can't read table");
 	}
