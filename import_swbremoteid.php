@@ -172,7 +172,6 @@ function MAIN_LOOP()
 			} //while
 		}
 		mysql_free_result($cursor);	
-		//logger("Exported  successfully ".$counerDone." of ".$counerAll." records");
 		logger("Was found VDES: ".$cntVDES);
 		logger("Added switchbiards ID: ".$cntADD);
 	}else{
