@@ -29,7 +29,7 @@ function SendMeterDataToItera($rec)
 		'@device_id' => $rec['meterremoteid'],
 		'@source_id' => 5,
 		'@date' => $rec['mdatatime'],
-		'@value' => $rec['mdata'],
+		'@value' => (int) $rec['mdata'],
 		'@description' => $rec['mdatacomment'],
 	];
 	$iteraAPIurl = $config['bsmartapi']['url_addmeterdata'];
