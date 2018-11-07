@@ -6,7 +6,9 @@ require_once 'ExportIteraLib.php';
 define('RECSPERPAGE',   20); 
 
 $GlobalRecCount = 0;				// Всего записей от Итеры отработано
-$InsertRecCount = 0;				// Записей добавлено в нашу базу
+$InsertRecCount = 0;				// ЗЗаявок добавлено в нашу базу
+$UpdateRecCoun = 0;					// Обновлено статусов заявок
+$RejectedRecCount = 0;				// Возвращенных заявок
 
 //--------------------------------------------------------------------------------------
 //	Добавить кросс таблицу причин заявки
@@ -31,8 +33,10 @@ function LoadMalfunctionCrossTable()
 
 //--------------------------------------------------------------------------------------
 //	Прочитать страницу с заявками из итеры
+//	Page - какую страницу загружать
+//	onlyRejected - если true, вытягивает возвращенные заявки
 //--------------------------------------------------------------------------------------
-function GetIteraTicketsPage($Page)
+function GetIteraTicketsPage($Page, $onlyRejected = false)
 {
 	$res = [];
 	global $config;
@@ -44,7 +48,10 @@ function GetIteraTicketsPage($Page)
 	$DayDepth = 0 + $config['options']['daydepth'];
 	if (empty($DayDepth)) $DayDepth = 1;
 	$DateFrom = date('Y-m-d', strtotime("now -".$DayDepth." day"));
-	$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(source_id)=in(2,3)"; 	
+	if ($onlyRejected)	
+		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(return_count)=greaterthan(0)&filter(status_id)=equals(1)";	
+	else
+		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(source_id)=in(2,3)"; 	
 	curl_setopt($ch, CURLOPT_URL, $request);
 	curl_setopt_array($ch, $curloptions);
 	$result = curl_exec($ch);
@@ -90,7 +97,7 @@ function FindExisting($IteraRecs)
 		$nolist .= "'".$Rec['no']."'";
 	}
 	// получаем из нашей базы тикеты, которые есть в списке тикетов, полученных от Итеры
-	$sql = "SELECT id, ticode, ticoderemote, tistatus FROM ticket WHERE ticoderemote in (".$idlist.") OR ticode in (".$nolist.")  OR ticoderemote in (".$nolist.") ;";
+	$sql = "SELECT id, ticode, ticoderemote, tistatus, tireturncount FROM ticket WHERE ticoderemote in (".$idlist.") OR ticode in (".$nolist.")  OR ticoderemote in (".$nolist.") ;";
 	if( FALSE !== ( $rescursor = mysql_query($sql) ) ) {
 		while ($row = mysql_fetch_assoc($rescursor)) 
 			$res[] = $row;
@@ -107,7 +114,7 @@ function FindExisting($IteraRecs)
 //		$tlist - список тикетов из нашей базы, в которых есть номера из списка тиккетов Итеры
 //		$rID   - ID тикета Итеры
 //		$rNo   - No тикета Итеры
-//	Возвращает true, если ID или No найден в нашей базе
+//	Возвращает ticket, если ID или No найден в нашей базе
 //--------------------------------------------------------------------------------------
 function CheckExists($tlist, $rID, $rNo)
 {
@@ -324,6 +331,7 @@ function ProcessIteraTickets($IteraRecs)
 	return $Res;
 }
 
+
 //--------------------------------------------------------------------------------------
 //	Добавить Ticket в нашу базу
 //--------------------------------------------------------------------------------------
@@ -372,6 +380,8 @@ instickdberr:
 function UpdateTicket($ticket, $status)
 {
 	global $config;
+	global $UpdateRecCount;
+
 	$res = false;
 	$sql = "UPDATE ticket SET tistatus='{$status}' WHERE id={$ticket['id']};";
 
@@ -379,6 +389,7 @@ function UpdateTicket($ticket, $status)
 	else logger("update '{$ticket['ticode']}' status '{$status}'");
 
 	if( FALSE === mysql_query($sql) ) goto updtickdberr; 
+	$UpdateRecCoun++;
 	$res = true;
 updtickexit:
 	return $res;
@@ -406,26 +417,129 @@ function InsertTicketLog($rec)
 
 
 //--------------------------------------------------------------------------------------
+// Обрабатывает массив возвращенных заявок, полученных на странице Итеры
+//--------------------------------------------------------------------------------------
+function ProcessIteraRejectedTickets($IteraRecs)
+{
+	$Res = 0;
+	global $config;
+	global $GlobalRecCount;
+
+	if (!is_array($IteraRecs)) return $Res;
+	if (empty($IteraRecs)) return $Res;
+
+	$RecExists = FindExisting($IteraRecs);
+
+	$cnt = count($IteraRecs);
+	foreach($IteraRecs as $Rec){
+		$GlobalRecCount++;
+		logger("--- ".$Rec['id']." -------------------------------------------------------------------");
+		$Exists = CheckExists($RecExists, $Rec['id'], $Rec['no']);
+		if (!empty($Exists)){
+			// Такая заявка у нас есть
+			// Меняем статус заяки
+			if ($Exists['tireturncount'] < $Rec['return_count']) {
+				UpdateRejectedTicket( $Exists, $Rec['status_changed'], $Rec['return_count']);
+				$Res = $Exists['id'];
+				// Читаем эту заявку, чтобы сформировать TicletLog
+				$sql = "SELECT * FROM ticket WHERE id={$Exists['id']};";		
+				if( FALSE !== ( $rescursor = mysql_query($sql) ) ) {
+					$tirec = mysql_fetch_assoc($rescursor); 
+					mysql_free_result($rescursor);
+					InsertRejectedTicketLog($tirec);
+				}else{
+					if ($config['options']['debuglog'])  logger("Can't read exists ticket id={$Exists['id']}. ");
+				}
+			}else{
+				if ($config['options']['debuglog'])  logger("Status not changed. ");
+			}
+		}
+	}
+	return $Res;
+
+}
+
+
+//--------------------------------------------------------------------------------------
+//	Обновляет статус Ticket-а в нашей базе
+//--------------------------------------------------------------------------------------
+function UpdateRejectedTicket($ticket, $statustime, $rcount)
+{
+	global $config;
+	global $RejectedRecCount;
+
+	$res = false;
+	$sql = "UPDATE ticket SET tistatus='ITERA_REASSIGN', tistatustime='{$statustime}', tireturncount={$rcount} WHERE id={$ticket['id']};";
+
+	if ($config['options']['debuglog']) logger( "_ TICKET: ".$sql);	
+	else logger("update '{$ticket['ticode']}' status '{$status}'");
+
+	if( FALSE === mysql_query($sql) ) goto updrjtickdberr; 
+	$res = true;
+	$RejectedRecCount++;
+updrjtickexit:
+	return $res;
+
+updrjtickdberr:
+	logger('Update Ticket db error : '.mysql_error());
+	return false;
+}
+
+//--------------------------------------------------------------------------------------
+//	Вставляет сообщение об изменении статуса заявки в нашу базу (в ticketlog)
+//--------------------------------------------------------------------------------------
+function InsertRejectedTicketLog($rec)
+{
+	global $config;
+
+	$sql="INSERT INTO ticketlog (tilplannedtime,tiltype,tilstatus,tilticket_id,tilsender_id,tilsenderdesk_id,tilreceiver_id,tilreceiverdesk_id,tiltext) 
+		VALUES ('".$rec['tiplannedtime']."','WORKORDER','ITERA_REASSIGN',".$rec['id'].",".(empty($rec['tioriginator_id'])?'NULL':$rec['tioriginator_id']).",".(empty($rec['tioriginatordesk_id'])?'NULL':$rec['tioriginatordesk_id']).",NULL,NULL,".$rec['description'].");";
+
+	if ($config['options']['debuglog']) logger( "_ LOG: ".$sql);			
+
+	if( FALSE === mysql_query($sql) ) 
+		logger('InsertLog db error : '.mysql_error());
+}
+
+//--------------------------------------------------------------------------------------
 //	Основной цыкла экспорта
 //--------------------------------------------------------------------------------------
 function MAIN_LOOP()
 {
 	global $config;
+	global $InsertRecCount;
+	global $UpdateRecCoun;
+	global $RejectedRecCount;
 
 	// Делаем "умолчания" настроек
 	if  (empty($config['options']['daydepth'])) $config['options']['daydepth']=3;
 
 	LoadMalfunctionCrossTable();																					// Подгружаем кросс таблицу причин подачи заявки
 
+	// Импортируем новые заявки из Итеры
+	logger('=== Load new tickets ============================================');
 	$PageCount = 0;
 	do{
 		$IteraTickets = GetIteraTicketsPage($PageCount);
 		$PageCount++;
 		ProcessIteraTickets($IteraTickets);
-//logger('Exit by debug'); return;  // ! ! !   ДЛЯ ОТЛАДКИ
+//logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
 	}while( count($IteraTickets)>0 );
 
-	logger($InsertRecCount." entries inserted.");
+	// Импортируем возвернутые заявки из Итеры
+	logger('=== Load rejected tickets ============================================');
+	$PageCount = 0;
+	do{
+		$IteraTickets = GetIteraTicketsPage($PageCount, true);
+		$PageCount++;
+		ProcessIteraRejectedTickets($IteraTickets);
+//logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
+	}while( count($IteraTickets)>0 );
+
+
+	logger("".$InsertRecCount." entries inserted.");
+	logger("".$UpdateRecCoun." entries updated.");
+	logger("".$RejectedRecCount." entries rejected.");
 
 }
 
