@@ -97,7 +97,7 @@ function FindExisting($IteraRecs)
 		$nolist .= "'".$Rec['no']."'";
 	}
 	// получаем из нашей базы тикеты, которые есть в списке тикетов, полученных от Итеры
-	$sql = "SELECT id, ticode, ticoderemote, tistatus, tireturncount FROM ticket WHERE ticoderemote in (".$idlist.") OR ticode in (".$nolist.")  OR ticoderemote in (".$nolist.") ;";
+	$sql = "SELECT id, ticode, ticoderemote, tistatus, ticalltype, tireturncount FROM ticket WHERE ticoderemote in (".$idlist.") OR ticode in (".$nolist.")  OR ticoderemote in (".$nolist.") ;";
 	if( FALSE !== ( $rescursor = mysql_query($sql) ) ) {
 		while ($row = mysql_fetch_assoc($rescursor)) 
 			$res[] = $row;
@@ -246,7 +246,8 @@ function ProcessIteraTickets($IteraRecs)
 		$Exists = CheckExists($RecExists, $Rec['id'], $Rec['no']);
 		if (!empty($Exists)){
 			// Такая заявка у нас уже есть
-			if  ( in_array($Rec['status_id'], [2,3,11,12])) {
+			if  (( 'Itera2' == $Exists['ticalltype']) && 							// рассматриваем только заявки, которые мы ранее импортировали из Итеры
+				 ( in_array($Rec['status_id'], [2,3,11,12]))){
 				// Меняем статус заяки
 				$FromIteraStatus = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
 				if ($FromIteraStatus != $Exists['tistatus']){
@@ -446,7 +447,7 @@ function ProcessIteraRejectedTickets($IteraRecs)
 				if( FALSE !== ( $rescursor = mysql_query($sql) ) ) {
 					$tirec = mysql_fetch_assoc($rescursor); 
 					mysql_free_result($rescursor);
-					InsertRejectedTicketLog($tirec);
+					InsertRejectedTicketLog($tirec, $Rec['description']);
 				}else{
 					if ($config['options']['debuglog'])  logger("Can't read exists ticket id={$Exists['id']}. ");
 				}
@@ -472,7 +473,7 @@ function UpdateRejectedTicket($ticket, $statustime, $rcount)
 	$sql = "UPDATE ticket SET tistatus='ITERA_REASSIGN', tistatustime='{$statustime}', tireturncount={$rcount} WHERE id={$ticket['id']};";
 
 	if ($config['options']['debuglog']) logger( "_ TICKET: ".$sql);	
-	else logger("update '{$ticket['ticode']}' status '{$status}'");
+	else logger("update ticket '{$ticket['ticode']}' rcount={$rcount} statustime='{$statustime}' ");
 
 	if( FALSE === mysql_query($sql) ) goto updrjtickdberr; 
 	$res = true;
@@ -488,12 +489,12 @@ updrjtickdberr:
 //--------------------------------------------------------------------------------------
 //	Вставляет сообщение об изменении статуса заявки в нашу базу (в ticketlog)
 //--------------------------------------------------------------------------------------
-function InsertRejectedTicketLog($rec)
+function InsertRejectedTicketLog($rec, $description)
 {
 	global $config;
 
 	$sql="INSERT INTO ticketlog (tilplannedtime,tiltype,tilstatus,tilticket_id,tilsender_id,tilsenderdesk_id,tilreceiver_id,tilreceiverdesk_id,tiltext) 
-		VALUES ('".$rec['tiplannedtime']."','WORKORDER','ITERA_REASSIGN',".$rec['id'].",".(empty($rec['tioriginator_id'])?'NULL':$rec['tioriginator_id']).",".(empty($rec['tioriginatordesk_id'])?'NULL':$rec['tioriginatordesk_id']).",NULL,NULL,".$rec['description'].");";
+		VALUES ('".$rec['tiplannedtime']."','WORKORDER','ITERA_REASSIGN',".$rec['id'].",".(empty($rec['tioriginator_id'])?'NULL':$rec['tioriginator_id']).",".(empty($rec['tioriginatordesk_id'])?'NULL':$rec['tioriginatordesk_id']).",NULL,NULL,'".$description."');";
 
 	if ($config['options']['debuglog']) logger( "_ LOG: ".$sql);			
 
@@ -523,7 +524,7 @@ function MAIN_LOOP()
 		$IteraTickets = GetIteraTicketsPage($PageCount);
 		$PageCount++;
 		ProcessIteraTickets($IteraTickets);
-//logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
+logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
 	}while( count($IteraTickets)>0 );
 
 	// Импортируем возвернутые заявки из Итеры
