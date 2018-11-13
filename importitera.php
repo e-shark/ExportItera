@@ -77,6 +77,41 @@ function GetIteraTicketsPage($Page, $onlyRejected = false)
 }
 
 //--------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------
+function GetIteraTicketCommentLast($ITID)
+{
+	$res = [];
+	global $config;
+	global $curloptions;
+	global $ch;
+
+	$request = $config['bsmartapi']['url_getticketcomment']."?sort(created)=desc&filter(ticket_id)=equals({$ITID})"; 	
+	curl_setopt($ch, CURLOPT_URL, $request);
+	curl_setopt_array($ch, $curloptions);
+	if ($config['options']['debuglog']) logger("try read comment: ".$request)	;
+	$result = curl_exec($ch);
+	if(FALSE===$result)
+		logger('Error:failed request page'.$Page);
+	else {
+		$result = mb_convert_encoding($result,'UTF-8');
+		$jsonAnswer = json_decode($result,true);
+		if(is_array($jsonAnswer)) {
+			// У нас есть массив в тикетами от Итеры
+			$cnt = $jsonAnswer['TotalRecordsCount'];
+			if ( is_array($jsonAnswer['Records']) ) {
+				$res = $jsonAnswer['Records'][0]['description'];
+//logger("****************************************************[\n".json_encode($res)."\n]");
+				$cnt = count($res);
+				logger("Recive ".$cnt." comments for ITID".$ITID." ");
+			}
+		}
+	}
+
+	return $res;
+
+}
+
+//--------------------------------------------------------------------------------------
 //	Ищет в нашей базе уже имеющиеся заявки из списка заявок Itera
 //--------------------------------------------------------------------------------------
 function FindExisting($IteraRecs)
@@ -332,7 +367,6 @@ function ProcessIteraTickets($IteraRecs)
 	return $Res;
 }
 
-
 //--------------------------------------------------------------------------------------
 //	Добавить Ticket в нашу базу
 //--------------------------------------------------------------------------------------
@@ -447,7 +481,8 @@ function ProcessIteraRejectedTickets($IteraRecs)
 				if( FALSE !== ( $rescursor = mysql_query($sql) ) ) {
 					$tirec = mysql_fetch_assoc($rescursor); 
 					mysql_free_result($rescursor);
-					InsertRejectedTicketLog($tirec, $Rec['description']);
+					$description = GetIteraTicketCommentLast($Rec['id']);
+					InsertRejectedTicketLog($tirec, $description);
 				}else{
 					if ($config['options']['debuglog'])  logger("Can't read exists ticket id={$Exists['id']}. ");
 				}
@@ -494,7 +529,7 @@ function InsertRejectedTicketLog($rec, $description)
 	global $config;
 
 	$sql="INSERT INTO ticketlog (tilplannedtime,tiltype,tilstatus,tilticket_id,tilsender_id,tilsenderdesk_id,tilreceiver_id,tilreceiverdesk_id,tiltext) 
-		VALUES ('".$rec['tiplannedtime']."','WORKORDER','ITERA_REASSIGN',".$rec['id'].",".(empty($rec['tioriginator_id'])?'NULL':$rec['tioriginator_id']).",".(empty($rec['tioriginatordesk_id'])?'NULL':$rec['tioriginatordesk_id']).",NULL,NULL,'".$description."');";
+		VALUES ('".(empty($rec['tiplannedtime'])?'NULL':$rec['tiplannedtime'])."','WORKORDER','ITERA_REASSIGN',".$rec['id'].",".(empty($rec['tioriginator_id'])?'NULL':$rec['tioriginator_id']).",".(empty($rec['tioriginatordesk_id'])?'NULL':$rec['tioriginatordesk_id']).",NULL,NULL,'".$description."');";
 
 	if ($config['options']['debuglog']) logger( "_ LOG: ".$sql);			
 
@@ -521,20 +556,20 @@ function MAIN_LOOP()
 	logger('=== Load new tickets ============================================');
 	$PageCount = 0;
 	do{
+//logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
 		$IteraTickets = GetIteraTicketsPage($PageCount);
 		$PageCount++;
 		ProcessIteraTickets($IteraTickets);
-logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
 	}while( count($IteraTickets)>0 );
 
 	// Импортируем возвернутые заявки из Итеры
 	logger('=== Load rejected tickets ============================================');
 	$PageCount = 0;
 	do{
+//logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
 		$IteraTickets = GetIteraTicketsPage($PageCount, true);
 		$PageCount++;
 		ProcessIteraRejectedTickets($IteraTickets);
-//logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
 	}while( count($IteraTickets)>0 );
 
 

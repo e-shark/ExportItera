@@ -298,6 +298,7 @@ function InsUpdIteraRec(&$row, $fInsert = false)
 		if ( is_array($jsonAnswer) ) 
 			if( FALSE !== mb_strpos($jsonAnswer['Status'],"Ok")) {
 				$insupdOk = true;
+				$row['isexportdone'] = 1;
 				if( empty($row[ 'rticket_id' ]) ) {
 					$row[ 'rticket_id' ] = $jsonAnswer['Result'];
 				}

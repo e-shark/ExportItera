@@ -11,3 +11,8 @@
 
 #---  Work config files
 *_config.php
+
+#--- archives in current folder
+/*.arj
+/*.zip
+/*.rar
