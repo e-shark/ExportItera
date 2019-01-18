@@ -259,6 +259,15 @@ function LogRecord($Rec,$tirec)
 	logger($str);
 }
 
+//--------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------
+function SourceIs9Prg($SourceId)
+{
+	$res = false;
+	if ( (($SourceId >=20) && ($SourceId <=22)) ||
+		 (($SourceId >=24) && ($SourceId <=31))) $res = true;
+	return $res;
+}
 
 //--------------------------------------------------------------------------------------
 // Обрабатывает массив заявок, полученных на странице Итеры
@@ -284,7 +293,11 @@ function ProcessIteraTickets($IteraRecs)
 			if  (( 'Itera2' == $Exists['ticalltype']) && 							// рассматриваем только заявки, которые мы ранее импортировали из Итеры
 				 ( in_array($Rec['status_id'], [2,3,11,12]))){
 				// Меняем статус заяки
-				$FromIteraStatus = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
+				if (SourceIs9Prg($Rec['source_id']))
+					$FromIteraStatus = GetCrossVal( $config['cross']['tistatus9PRG'],$Rec['status_id'] );
+				else
+					$FromIteraStatus = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
+
 				if ($FromIteraStatus != $Exists['tistatus']){
 					UpdateTicket( $Exists, $FromIteraStatus);
 					$Res = $Exists['id'];
@@ -326,10 +339,15 @@ function ProcessIteraTickets($IteraRecs)
 			$tirec['tioostype_id'] = GetCrossVal( $config['cross']['malfunction'], $Rec['malfunction_id'] );
 			$tirec['tiobject_id']  = GetCrossVal( $config['cross']['malfunction_type'], $Rec['malfunction_type_id'] );
 
-			$tirec['tidescription']  = $Rec['description'];
+			$tirec['tidescription']  = mb_substr( trim($Rec['description']), 0, 999);
 
 			$tirec['tipriority'] = GetCrossVal( $config['cross']['tipriority'],$Rec['priority_id'] );
-			$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
+
+			if (SourceIs9Prg($Rec['source_id']))
+				$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus9PRG'],$Rec['status_id'] );
+			else
+				$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
+
 			$tirec['tistatustime'] = date("Y-m-d H:i:s");
 
 			$getres = GetOriginator($Rec['created_by_user_id']);
