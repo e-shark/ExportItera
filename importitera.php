@@ -442,7 +442,7 @@ function InsertTicketLog($rec)
 	global $config;
 
 	$sql="INSERT INTO ticketlog (tilplannedtime,tiltype,tilstatus,tilticket_id,tilsender_id,tilsenderdesk_id,tilreceiver_id,tilreceiverdesk_id) 
-		VALUES ('".$rec['tiplannedtime']."','WORKORDER','".$rec['tistatus']."',".$rec['id'].",".(empty($rec['tioriginator_id'])?'NULL':$rec['tioriginator_id']).",".(empty($rec['tioriginatordesk_id'])?'NULL':$rec['tioriginatordesk_id']).",NULL,NULL);";
+		VALUES (".(empty($rec['tiplannedtime'])?'NULL':"'".$rec['tiplannedtime']."'").",'WORKORDER','".$rec['tistatus']."',".$rec['id'].",".(empty($rec['tioriginator_id'])?'NULL':$rec['tioriginator_id']).",".(empty($rec['tioriginatordesk_id'])?'NULL':$rec['tioriginatordesk_id']).",NULL,NULL);";
 
 	if ($config['options']['debuglog']) logger( "_ LOG: ".$sql);			
 
@@ -529,7 +529,7 @@ function InsertRejectedTicketLog($rec, $description)
 	global $config;
 
 	$sql="INSERT INTO ticketlog (tilplannedtime,tiltype,tilstatus,tilticket_id,tilsender_id,tilsenderdesk_id,tilreceiver_id,tilreceiverdesk_id,tiltext) 
-		VALUES ('".(empty($rec['tiplannedtime'])?'NULL':$rec['tiplannedtime'])."','WORKORDER','ITERA_REASSIGN',".$rec['id'].",".(empty($rec['tioriginator_id'])?'NULL':$rec['tioriginator_id']).",".(empty($rec['tioriginatordesk_id'])?'NULL':$rec['tioriginatordesk_id']).",NULL,NULL,'".$description."');";
+		VALUES (".(empty($rec['tiplannedtime'])?'NULL':"'".$rec['tiplannedtime']."'").",'WORKORDER','ITERA_REASSIGN',".$rec['id'].",".(empty($rec['tioriginator_id'])?'NULL':$rec['tioriginator_id']).",".(empty($rec['tioriginatordesk_id'])?'NULL':$rec['tioriginatordesk_id']).",NULL,NULL,'".$description."');";
 
 	if ($config['options']['debuglog']) logger( "_ LOG: ".$sql);			
 
@@ -556,7 +556,7 @@ function MAIN_LOOP()
 	logger('=== Load new tickets ============================================');
 	$PageCount = 0;
 	do{
-//logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
+//if ($config['options']['debugmode']) logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
 		$IteraTickets = GetIteraTicketsPage($PageCount);
 		$PageCount++;
 		ProcessIteraTickets($IteraTickets);
@@ -566,7 +566,7 @@ function MAIN_LOOP()
 	logger('=== Load rejected tickets ============================================');
 	$PageCount = 0;
 	do{
-//logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
+//if ($config['options']['debugmode']) logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
 		$IteraTickets = GetIteraTicketsPage($PageCount, true);
 		$PageCount++;
 		ProcessIteraRejectedTickets($IteraTickets);

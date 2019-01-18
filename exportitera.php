@@ -541,7 +541,7 @@ mysql_select_db($config['db']['dbname']);
 		//$sql = "SELECT * FROM exportiteralog WHERE IFNULL(isexportdone,0) = 0 AND TIMESTAMPDIFF(DAY, recordtime, now())<=".$daydepth." ORDER BY id ;";
 		$sql = "SELECT exportiteralog.*, ticket.ticode 
 				FROM exportiteralog join ticket on ticket.id = exportiteralog.ticket_id
-				WHERE IFNULL(isexportdone,0) = 0 AND TIMESTAMPDIFF(DAY, recordtime, now())<=".$daydepth." 
+				WHERE IFNULL(isexportdone,0) = 0 AND recordtime >= DATE_SUB(NOW(), INTERVAL ".$daydepth." DAY)
 				ORDER BY exportiteralog.id ;";
 		if( FALSE !== ( $cursor = mysql_query($sql) ) ) {
 			$num_rows = mysql_num_rows($cursor);

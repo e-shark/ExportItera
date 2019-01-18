@@ -202,8 +202,11 @@ function MAIN_START()
 	}
 	if ( mysql_select_db($config['db']['dbname']) ) {
 
+		if (empty($config['options']['debugmode'])) 
+			$config['options']['debugmode'] = false;			// По умолчанию разрешаем скрипту работать не более 30 минут
+
 		if (empty($config['options']['exectout'])) 
-			$config['options']['exectout'] = 30;			// По умолчанию разрешаем скрипту работать не более 30 минут
+			$config['options']['exectout'] = 30;				// По умолчанию разрешаем скрипту работать не более 30 минут
 
 		if (is_null($config['options']['skiptransfer'])) 		// По умолчанию запрещаем отсылку данных
 			$config['options']['skiptransfer'] = true;
