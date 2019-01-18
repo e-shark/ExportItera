@@ -51,7 +51,7 @@ function GetIteraTicketsPage($Page, $onlyRejected = false)
 	if ($onlyRejected)	
 		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(return_count)=greaterthan(0)&filter(status_id)=equals(1)";	
 	else
-		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(source_id)=in(2,3)"; 	
+		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(source_id)=in(2,3,20,21,22,24,25,26,27,28,29,30,31)"; 	
 	curl_setopt($ch, CURLOPT_URL, $request);
 	curl_setopt_array($ch, $curloptions);
 	$result = curl_exec($ch);
