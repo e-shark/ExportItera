@@ -51,7 +51,7 @@ function GetIteraTicketsPage($Page, $onlyRejected = false)
 	if ($onlyRejected)	
 		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(return_count)=greaterthan(0)&filter(status_id)=equals(1)";	
 	else
-		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(source_id)=in(2,3,20,21,22,24,25,26,27,28,29,30,31)"; 	
+		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(source_id)=in(2,3,20,21,22,24,25,26,27,28,29,30,31,32)"; 	
 	curl_setopt($ch, CURLOPT_URL, $request);
 	curl_setopt_array($ch, $curloptions);
 	$result = curl_exec($ch);
@@ -265,7 +265,7 @@ function SourceIs9Prg($SourceId)
 {
 	$res = false;
 	if ( (($SourceId >=20) && ($SourceId <=22)) ||
-		 (($SourceId >=24) && ($SourceId <=31))) $res = true;
+		 (($SourceId >=24) && ($SourceId <=32))) $res = true;
 	return $res;
 }
 
@@ -343,10 +343,14 @@ function ProcessIteraTickets($IteraRecs)
 
 			$tirec['tipriority'] = GetCrossVal( $config['cross']['tipriority'],$Rec['priority_id'] );
 
-			if (SourceIs9Prg($Rec['source_id']))
-				$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus9PRG'],$Rec['status_id'] );
-			else
-				$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
+			if ( 32 == $Rec['status_id'] ) {					// елс источник itera - техническое обслуживание
+				$tirec['tistatus'] = 'ITERA_ASSIGN'; 
+			}else{
+				if (SourceIs9Prg($Rec['source_id']))			// елс источник itera - 9 программ
+					$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus9PRG'],$Rec['status_id'] );
+				else
+					$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
+			}
 
 			$tirec['tistatustime'] = date("Y-m-d H:i:s");
 
