@@ -190,7 +190,7 @@ function GetElevator($i_devid)
 	$result = [];
 	global $config;
 
-	$sql = "SELECT l.id as elid, l.elinventoryno, f.id as faid, f.facode FROM elevator l 
+	$sql = "SELECT l.id as elid, l.elinventoryno, f.id as faid, f.facode, l.eldivision_id FROM elevator l 
 			left join
 			(SELECT id, facode FROM facility )f
 			ON l.elfacility_id = f.id
@@ -332,6 +332,7 @@ function ProcessIteraTickets($IteraRecs)
 				$tirec['tiequipment_id'] = $getres['elid']; 
 				$tirec['tifacilitycode'] = $getres['facode'];
 				$tirec['tifacility_id']	= $getres['faid'];
+				$tirec['tidivision_id']	= $getres['eldivision_id'];
 			}
 
 			$tirec['tiaddress'] = $Rec['address'];
