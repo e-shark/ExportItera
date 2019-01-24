@@ -344,7 +344,7 @@ function ProcessIteraTickets($IteraRecs)
 
 			$tirec['tipriority'] = GetCrossVal( $config['cross']['tipriority'],$Rec['priority_id'] );
 
-			if ( 32 == $Rec['status_id'] ) {					// елс источник itera - техническое обслуживание
+			if ( 32 == $Rec['source_id'] ) {					// елс источник itera - техническое обслуживание
 				$tirec['tistatus'] = 'ITERA_ASSIGN'; 
 			}else{
 				if (SourceIs9Prg($Rec['source_id']))			// елс источник itera - 9 программ
