@@ -270,6 +270,32 @@ function SourceIs9Prg($SourceId)
 }
 
 //--------------------------------------------------------------------------------------
+//	Получить из базы Division_Id по tiRigion 
+// Region - название района (например 'КИЇВСЬКИЙ') берется по кросстаблице из кода района itera GetCrossVal( $config['cross']['district'], $Rec['district_id'] )
+// ObjectId - тип оборудования
+//--------------------------------------------------------------------------------------
+function FindDivisionID($Region,$ObjectId)
+{
+	global $config;
+	$res = NULL;
+	$sql = "select division_id from district_division_devices, district where district.id=district_id  and districtlocality_id=159 and districtname='".$Region."' and device_type=".$ObjectId.";";
+
+	if( FALSE !== ( $rescursor = mysql_query($sql) ) ) {
+		$res = mysql_fetch_assoc($rescursor); 
+		mysql_free_result($rescursor);
+	}else{
+		if ($config['options']['debuglog'])  logger("Can't read division_id for Region='{$Region}'. ");
+	}
+
+	if ($config['options']['debugmode']) { 			// ! ! !   ДЛЯ ОТЛАДКИ
+		logger('get DI for region = '.$Region.' ObjID='.$ObjectId);
+		logger('sql='.$sql);
+		logger('res= '.serialize($res));
+	}
+
+	return $res['division_id'];
+}
+//--------------------------------------------------------------------------------------
 // Обрабатывает массив заявок, полученных на странице Итеры
 //--------------------------------------------------------------------------------------
 function ProcessIteraTickets($IteraRecs)
@@ -344,10 +370,12 @@ function ProcessIteraTickets($IteraRecs)
 
 			$tirec['tipriority'] = GetCrossVal( $config['cross']['tipriority'],$Rec['priority_id'] );
 
-			if ( 32 == $Rec['source_id'] ) {					// елс источник itera - техническое обслуживание
+			if ( 32 == $Rec['source_id'] ) {										// елс источник itera - техническое обслуживание
 				$tirec['tistatus'] = 'ITERA_ASSIGN'; 
+				if (empty($tirec['tidivision_id']))									// если не удалось привязать id подразделения, берем его по району
+					$tirec['tidivision_id'] = FindDivisionID($tirec['tiregion']);
 			}else{
-				if (SourceIs9Prg($Rec['source_id']))			// елс источник itera - 9 программ
+				if (SourceIs9Prg($Rec['source_id']))								// елс источник itera - 9 программ
 					$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus9PRG'],$Rec['status_id'] );
 				else
 					$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
@@ -357,7 +385,7 @@ function ProcessIteraTickets($IteraRecs)
 
 			$getres = GetOriginator($Rec['created_by_user_id']);
 			if (!empty($getres)) {
-				$tirec['tioriginator_id'] = $getres['id']; 				// это для ticketlog
+				$tirec['tioriginator_id'] = $getres['id']; 							// это для ticketlog
 				$tirec['tioriginator'] = $getres['fio']; 
 				$tirec['tioriginatordesk_id'] = $getres['division_id'];
 			}
@@ -575,11 +603,20 @@ function MAIN_LOOP()
 
 	LoadMalfunctionCrossTable();																					// Подгружаем кросс таблицу причин подачи заявки
 
+	/*
+	if ($config['options']['debugmode']) { 			// ! ! !   ДЛЯ ОТЛАДКИ FindDivisionID
+		logger('debug test'); 
+		$di = FindDivisionID( GetCrossVal( $config['cross']['district'], 7) , 1);
+		logger('di='.serialize($di) );
+		return; 
+	}
+	*/
+
 	// Импортируем новые заявки из Итеры
 	logger('=== Load new tickets ============================================');
 	$PageCount = 0;
 	do{
-//if ($config['options']['debugmode']) logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
+//if ($config['options']['debugmode']) {logger('Exit by debug'); break;}  // ! ! !   ДЛЯ ОТЛАДКИ
 		$IteraTickets = GetIteraTicketsPage($PageCount);
 		$PageCount++;
 		ProcessIteraTickets($IteraTickets);
@@ -589,7 +626,7 @@ function MAIN_LOOP()
 	logger('=== Load rejected tickets ============================================');
 	$PageCount = 0;
 	do{
-//if ($config['options']['debugmode']) logger('Exit by debug'); break;  // ! ! !   ДЛЯ ОТЛАДКИ
+//if ($config['options']['debugmode']) {logger('Exit by debug'); break;}  // ! ! !   ДЛЯ ОТЛАДКИ
 		$IteraTickets = GetIteraTicketsPage($PageCount, true);
 		$PageCount++;
 		ProcessIteraRejectedTickets($IteraTickets);
