@@ -371,7 +371,7 @@ function ProcessIteraTickets($IteraRecs)
 			$tirec['tipriority'] = GetCrossVal( $config['cross']['tipriority'],$Rec['priority_id'] );
 
 			if ( 32 == $Rec['source_id'] ) {										// елс источник itera - техническое обслуживание
-				$tirec['tistatus'] = 'ITERA_ASSIGN'; 
+				$tirec['tistatus'] = 'TO_ASSIGN'; 
 				if (empty($tirec['tidivision_id']))									// если не удалось привязать id подразделения, берем его по району
 					$tirec['tidivision_id'] = FindDivisionID($tirec['tiregion']);
 			}else{
