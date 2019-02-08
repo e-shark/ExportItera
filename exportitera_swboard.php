@@ -1,5 +1,5 @@
 <?php
-const SCRIPTVERSION = "v.0.2";
+const SCRIPTVERSION = "v.0.3";
 const SCRIPTNAME="exportitera_swboard";
 require_once 'ExportIteraLib.php';
 
@@ -56,7 +56,7 @@ function SendFileToItera($picrec)
 	// отправляем данные
 	$iteraAPIurl = $config['bsmartapi']['url_addphoto'];
 	$postdata=[			
-		'@device_id' => $picrec['iteraswbid'],
+		'@device_id' => $picrec['elremoteid'],
 		'@created' => $time,
 		'@description' => $picrec['fclientname'],
 		'@image' => $data64,
@@ -101,11 +101,10 @@ function SendFileToItera($picrec)
 //--------------------------------------------------------------------------------------
 function MAIN_LOOP(){
 
-	$sql = "SELECT eg.*, el.elremoteid, cr.iteraswbid
+	$sql = "SELECT eg.*, el.elremoteid
 			FROM elevator_gallery eg 
 			JOIN elevator el ON el.id = eg.elevator_id 
-			JOIN cross_itera_switchboard cr ON cr.devid = el.id
-			WHERE eg.iteraexporttime IS NULL AND cr.iteraswbid IS NOT NULL;";
+			WHERE eg.iteraexporttime IS NULL ;";
 	logger("SQL: ",$sql);
 
 	$cntSent = 0;
