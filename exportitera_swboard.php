@@ -1,5 +1,5 @@
 <?php
-const SCRIPTVERSION = "v.0.3";
+const SCRIPTVERSION = "v.0.4";
 const SCRIPTNAME="exportitera_swboard";
 require_once 'ExportIteraLib.php';
 
@@ -39,7 +39,9 @@ function SendFileToItera($picrec)
 	$filepath = trim( $config['SWPictures']['PicPath'] );
 	if ($config['SWPictures']['PicPath']{strlen($config['SWPictures']['PicPath'])-1} == DIRECTORY_SEPARATOR) 		// убираем лишнюю черту, если она есть
 		$filepath = substr($config['SWPictures']['PicPath'] ,0,-1);
-	$filepath =  $filepath.DIRECTORY_SEPARATOR."E_".$picrec['elevator_id'];
+	$filepath = $filepath.DIRECTORY_SEPARATOR."E_".$picrec['elevator_id'];
+
+	if (!empty($picrec['section'])) $filepath .= DIRECTORY_SEPARATOR.$picrec['section'];
 
 	$filename = $filepath.DIRECTORY_SEPARATOR.$picrec['fname'];
 	$maxlen = $config['SWPictures']['maxfilelen'];

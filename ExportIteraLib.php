@@ -73,45 +73,29 @@ function SetLogPath($path){
 
 //--------------------------------------------------------------------------------------
 //	Проверяет, не запущена ли уже копия задачи,
-//  если копий нет, ставит в базе отметку о запуске
+//	Возвращает true, если копий нет и запуск скрипта разрешен
+//  (при этом ставит в базе отметку о запуске)
+//  $execTout - максимально допустимое время выполнения скрипта (в минутах)
 //--------------------------------------------------------------------------------------
-function ChekForStartPermission()
+function ChekForStartPermission($execTout)
 {
-	global $config;
 	$res = false;
-	$sql = "SELECT starttime, TIMESTAMPDIFF(MINUTE, starttime, now()) as extime from batchscriptlog where scriptname='".SCRIPTNAME."';";
-    if( FALSE !== ( $dscursor = mysql_query($sql) ) ) {
-    	$dsrows = mysql_num_rows($dscursor);
-    	if ($dsrows>0){
-    		// Есть запись. Значит задача уже запускалась
-    		$dsrow = mysql_fetch_assoc( $dscursor );
-    		// Проверяем, как давно был запуск задачи
-    		if ( is_null($dsrow['extime']) || ($dsrow['extime'] > $config['options']['exectout']+1) ) {
-    			if (($dsrow['extime'] > $config['options']['exectout']+1))
-    				logger("StartTime label (".$dsrow['extime']." min ago) out of timeout (".($config['options']['exectout'])." min) !");
-    			// Превыщен лимит. Подразумеваем, что процесс, оставивший пометку в базе, просто звершился крахом, не успев снять пометку из базы
-    			$sql = "UPDATE batchscriptlog SET starttime = now() WHERE scriptname='".SCRIPTNAME."'; ";
-    			if( mysql_query($sql) ) {
-					logger("Update table batchscriptlog ");
-	    			$res = true;
-    			}else
-					logger("Can't update table batchscriptlog");
-    		}else{
-				logger("Task already started!");
-    		}
-        }else{ 
-        	// Записей нет, значит уже запущенных задач нет
-  			$sql = "INSERT INTO batchscriptlog (scriptname, starttime) VALUES ('".SCRIPTNAME."', now()); ";
-			if( mysql_query($sql) ) {
-    			$res = true;
-				logger("Insert in table batchscriptlog");
-			}
-			else
-				logger("Can't insert in table batchscriptlog");
-		}
-		mysql_free_result($dscursor);
-	}else{
-		logger("Can't read table batchscriptlog");
+
+	$sql="call setScriptRunningState(\"".SCRIPTNAME."\",$execTout,@isRunningAllowed);";	//logger($sql);
+	if( FALSE === mysql_query($sql) ) {
+dberr:		logger('---Error: db error : '.mysql_error());
+			return FALSE;
+	}
+	if( FALSE === ( $cursor = mysql_query("select @isRunningAllowed;" ) ) )goto dberr; 
+	if( FALSE === ( $row = mysql_fetch_assoc( $cursor ) ) ) goto dberr; 
+	$isRunningAllowed = $row['@isRunningAllowed']; 
+	mysql_free_result($cursor);
+	switch($isRunningAllowed){
+		case 0: logger("Error: ".SCRIPTNAME." is already running. Abort execution!");	$res = false; 	break;
+		case 1:	logger("OK: ".SCRIPTNAME." is allowed to run");							$res = true;	break;
+		default:logger("Warning: Previous script copy has been started ".$isRunningAllowed." min ago. It exceeds max.execution time (".$execTout." min). Treat the copy as obsolete. ".SCRIPTNAME." is allowed to run");
+	    		$res = true;
+		break;
 	}
 	return $res;
 }
@@ -121,11 +105,10 @@ function ChekForStartPermission()
 //--------------------------------------------------------------------------------------
 function DeleteStartMarker()
 {
-	//$sql = "UPDATE batchscriptlog SET starttime = NULL WHERE scriptname='".SCRIPTNAME."'; ";
-	$sql = "DELETE FROM batchscriptlog WHERE scriptname='".SCRIPTNAME."'";
-	logger("Delete StartMarker from table batchscriptlog");
+	$sql = "DELETE FROM batchscriptlog WHERE scriptname='".SCRIPTNAME."';";
+	logger("OK: ".$sql);
 	if( FALSE == mysql_query($sql) ) 
-		logger("Can't delete marker from table batchscriptlog");
+		logger("Error: failed to delete from batchscriptlog");
 }
 
 //--------------------------------------------------------------------------------------
@@ -213,7 +196,7 @@ function MAIN_START()
 		if ($config['options']['skiptransfer'])
 			logger("Option skiptransfer is enabled!" );
 
-	    if (ChekForStartPermission()) {
+	    if (ChekForStartPermission( $config['options']['exectout'] )) {
 			if (LoginForItera()) {
 
 				MAIN_LOOP();
