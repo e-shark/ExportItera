@@ -348,7 +348,6 @@ function ProcessIteraTickets($IteraRecs)
 
 			// Далее шаманство по трансформации данных из Itera в нашу заявку
 			$tirec = [];
-			$tirec['ticoderemote'] = $Rec['id'];
 
 			$tirec['tiregion'] = GetCrossVal( $config['cross']['district'], $Rec['district_id'] );
 
@@ -370,14 +369,18 @@ function ProcessIteraTickets($IteraRecs)
 
 			$tirec['tipriority'] = GetCrossVal( $config['cross']['tipriority'],$Rec['priority_id'] );
 
+			$tirec['ticoderemote'] = $Rec['id'];
+
 			if ( 32 == $Rec['source_id'] ) {										// елс источник itera - техническое обслуживание
 				$tirec['tistatus'] = 'TO_ASSIGN'; 
 				if (empty($tirec['tidivision_id']))									// если не удалось привязать id подразделения, берем его по району
 					$tirec['tidivision_id'] = FindDivisionID($tirec['tiregion']);
 			}else{
-				if (SourceIs9Prg($Rec['source_id']))								// елс источник itera - 9 программ
+				if (SourceIs9Prg($Rec['source_id'])) {								// елс источник itera - 9 программ
 					$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus9PRG'],$Rec['status_id'] );
-				else
+					$tirec['ticoderemote'] = $Rec['no'];							// Добавлено по просьбе Савченко Дмитрия 22.02.2019
+					$tirec['ticaller'] = $Rec['ticket_source_name'];
+				}else
 					$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
 			}
 
