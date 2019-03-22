@@ -1,0 +1,58 @@
+11:15:50 *****************************************************************************************************************
+11:15:50 Start D:\GIT\ExportItera\exportitera.php v.1.25 Build 2019-03-22 11:13:47 Size: 24773
+11:15:55 Insert in table batchscriptlog
+11:15:56 123 rows have fetched from exportiteralog for export to Itera
+11:15:57 --------------------------------------------------------
+11:15:57 process exportiteralog record id=546382 ticode=190317-0021 ticket_id=271818 recordtime:2019-03-17 10:49:24 rticket_id='' ticode1562=''
+11:15:59 Itera GET id for ticode1562=
+  Request:http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0021) Response:
+11:15:59 Process SKIPPED from the fail GetTicketItera.
+11:15:59 UPDATE exportiteralog sql: UPDATE exportiteralog SET txtime='2019-03-22 11:15:59' ,txattempts=321 ,txcount=1 ,txrequest='http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0021) ' ,txresult='Error: failed to transmit 1562 request ' WHERE id=546382 ;
+11:15:59 Export for id 546382: Error
+11:15:59 --------------------------------------------------------
+11:15:59 process exportiteralog record id=546383 ticode=190317-0021 ticket_id=271818 recordtime:2019-03-17 10:49:25 rticket_id='' ticode1562=''
+11:16:02 Itera GET id for ticode1562=
+  Request:http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0021) Response:
+11:16:02 Process SKIPPED from the fail GetTicketItera.
+11:16:02 UPDATE exportiteralog sql: UPDATE exportiteralog SET txtime='2019-03-22 11:16:02' ,txattempts=321 ,txcount=1 ,txrequest='http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0021) ' ,txresult='Error: failed to transmit 1562 request ' WHERE id=546383 ;
+11:16:02 Export for id 546383: Error
+11:16:02 --------------------------------------------------------
+11:16:02 process exportiteralog record id=546519 ticode=190317-0029 ticket_id=271831 recordtime:2019-03-17 13:18:12 rticket_id='' ticode1562=''
+11:16:04 Itera GET id for ticode1562=
+  Request:http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0029) Response:
+11:16:04 Process SKIPPED from the fail GetTicketItera.
+11:16:04 UPDATE exportiteralog sql: UPDATE exportiteralog SET txtime='2019-03-22 11:16:04' ,txattempts=306 ,txcount=1 ,txrequest='http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0029) ' ,txresult='Error: failed to transmit 1562 request ' WHERE id=546519 ;
+11:16:04 Export for id 546519: Error
+11:16:04 --------------------------------------------------------
+11:16:04 process exportiteralog record id=546520 ticode=190317-0029 ticket_id=271831 recordtime:2019-03-17 13:18:14 rticket_id='' ticode1562=''
+11:16:07 Itera GET id for ticode1562=
+  Request:http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0029) Response:
+11:16:07 Process SKIPPED from the fail GetTicketItera.
+11:16:07 UPDATE exportiteralog sql: UPDATE exportiteralog SET txtime='2019-03-22 11:16:07' ,txattempts=306 ,txcount=1 ,txrequest='http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0029) ' ,txresult='Error: failed to transmit 1562 request ' WHERE id=546520 ;
+11:16:07 Export for id 546520: Error
+11:16:07 --------------------------------------------------------
+11:16:07 process exportiteralog record id=546539 ticode=190317-0156 ticket_id=271998 recordtime:2019-03-17 13:27:55 rticket_id='' ticode1562=''
+11:16:09 Itera GET id for ticode1562=
+  Request:http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0156) Response:
+11:16:09 Process SKIPPED from the fail GetTicketItera.
+11:16:09 UPDATE exportiteralog sql: UPDATE exportiteralog SET txtime='2019-03-22 11:16:09' ,txattempts=305 ,txcount=1 ,txrequest='http://bsmart.online2/ds/Ticket?filter(no)=equals(190317-0156) ' ,txresult='Error: failed to transmit 1562 request ' WHERE id=546539 ;
+11:16:10 Export for id 546539: Error
+11:16:10 --------------------------------------------------------
+11:16:10 process exportiteralog record id=546641 ticode=190317-0156 ticket_id=271998 recordtime:2019-03-17 14:03:21 rticket_id='' ticode1562=''
+11:16:28 *****************************************************************************************************************
+11:16:28 Start D:\GIT\ExportItera\exportitera.php v.1.25 Build 2019-03-22 11:13:47 Size: 24773
+11:16:28 Task already started!
+11:16:28 Haven't start permission. Export is not started.
+11:16:28 Done. Execution time 0 sec (0 min).
+11:21:32 *****************************************************************************************************************
+11:21:32 Start D:\GIT\ExportItera\exportitera.php v.1.25 Build 2019-03-22 11:13:47 Size: 24773
+11:21:32 Task already started!
+11:21:32 Haven't start permission. Export is not started.
+11:21:32 Done. Execution time 0 sec (0 min).
+11:24:15 *****************************************************************************************************************
+11:24:15 Start D:\GIT\ExportItera\exportitera.php v.1.25 Build 2019-03-22 11:13:47 Size: 24773
+11:24:15 StartTime label (128 min ago) out of timeout (60 min) !
+11:24:15 Update table batchscriptlog 
+11:24:16 123 rows have fetched from exportiteralog for export to Itera
+11:24:16 --------------------------------------------------------
+11:24:16 process exportiteralog record id=546641 ticode=190317-0156 ticket_id=271998 recordtime:2019-03-17 14:03:21 rticket_id='' ticode1562=''

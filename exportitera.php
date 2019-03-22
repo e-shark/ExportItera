@@ -539,12 +539,12 @@ mysql_select_db($config['db']['dbname']);
 
     if (ChekFoStartPermission()) {
 		//$sql = "SELECT * FROM exportiteralog WHERE IFNULL(isexportdone,0) = 0 AND TIMESTAMPDIFF(DAY, recordtime, now())<=".$daydepth." ORDER BY id ;";
-		$sql = "SELECT exportiteralog.*, ticket.ticode 
-				FROM exportiteralog join ticket on ticket.id = exportiteralog.ticket_id
+		$sql = "SELECT exportiteralog.*
+				FROM exportiteralog
 				WHERE IFNULL(isexportdone,0) = 0 
-				  AND ( (recordtime >= DATE_SUB(NOW(), INTERVAL ".$daydepth." DAY)) 
-				  	     OR (manualcmd = 1) )
-				ORDER BY exportiteralog.id ;";
+				  AND ( (recordtime >= DATE_SUB(NOW(), INTERVAL ".$daydepth." DAY)) ";
+		if ($config['options']['manualpermission']) $sql .= " OR (manualcmd = 1)"; 
+		$sql .= ") ORDER BY exportiteralog.id ;";
 		if( FALSE !== ( $cursor = mysql_query($sql) ) ) {
 			$num_rows = mysql_num_rows($cursor);
 // $num_rows = 0;	// ДЛЯ ОТЛАДКИ !!!!!!
@@ -568,11 +568,10 @@ mysql_select_db($config['db']['dbname']);
 						$row['txrequest'] = "";
 						$row['txresult'] = "";
 						$row['txcount'] = 0;
-
 						$row['txattempts']++;					// увеличиваем счетчик попыток
 
 						logger("--------------------------------------------------------");
-						logger("process exportiteralog record id=".$row['id']." ticode=".$row['ticode']." ticket_id=".$row['ticket_id']." recordtime:".$row['recordtime'].
+						logger("process exportiteralog record id=".$row['id']." ticode=".$row['ticodelogged']." ticket_id=".$row['ticket_id']." recordtime:".$row['recordtime'].
 							   " rticket_id='".$row['rticket_id']."' ticode1562='".$row['ticode1562']."'");
 
 						ProcessRecord($row);  
