@@ -1,86 +1,12 @@
 <?php
-const VERSION_EXPORTITERA="v.1.25";
-require_once __DIR__.'\\exportitera_config.php';
+const SCRIPTVERSION = "v.2.0";
+const SCRIPTNAME="exportitera";
+require_once 'ExportIteraLib.php';
 
 $ridtbl = [];
-$ch;
-$curloptions = [
-	CURLOPT_HTTPGET=>TRUE,
-	CURLOPT_HEADER=>0,
-	CURLOPT_RETURNTRANSFER=>TRUE,
-	CURLOPT_TIMEOUT=>4,
-	CURLOPT_COOKIEFILE=>"",	// Set an empty string to enable Cookie engine!!!
-];
 
-//--------------------------------------------------------------------------------------
-//	Очистить текст от непечатаемых символов
-function stripWhitespaces($string) {
-  $old_string = $string;
-  $string = strip_tags($string);
-  $string = preg_replace('/([^\pL\pN\pP\pS\pZ])|([\xC2\xA0])/u', ' ', $string);
-  $string = str_replace('  ',' ', $string);
-  $string = trim($string);
-  
-  if ($string === $old_string) {
-    return $string;
-  } else {
-    return stripWhitespaces($string); 
-  }  
-}
-
-//--------------------------------------------------------------------------------------
-/**
- *	Logger to file
- * @param string message
- * @return boolean result
- */
-function logger($message)
-{
-	global $config;
-
-	$dbgfn = __DIR__."\\".date('ymd_').basename(__FILE__,".php")."dbg.txt";
-	
-	if ($config['options']['conlog']) echo stripWhitespaces($message)."\n";
-	
-	if( FALSE === ( $dbgfp = fopen( $dbgfn, "a" ) ) ) return FALSE;
-	fputs($dbgfp, date('H:i:s').' '.$message."\n");
-	fclose($dbgfp);
-	return TRUE;
-}
-
-//--------------------------------------------------------------------------------------
-//	Процедура логина на сервере Итера
-//--------------------------------------------------------------------------------------
-function LoginForItera()
-{
-	$res = false;
-	global $config;
-	global $curloptions;
-	global $ch;
-
-	$request = $config['bsmartapi']['url_login'];
-	$ch=curl_init($request);
-	curl_setopt_array($ch,$curloptions);
-	curl_setopt($ch, CURLOPT_POST, 1);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, ["Referer: ".$request]);  
-	curl_setopt($ch, CURLOPT_POSTFIELDS, ['Login' => $config['bsmartapi']['username'], 'Password'=>$config['bsmartapi']['password']]);
-	if ( FALSE === ( $result = curl_exec($ch) ) ) {
-			$txresult = 'Error:network failure when auth';
-			$res = false;
-	}else{
-		$curlinfo=curl_getinfo($ch,CURLINFO_COOKIELIST);
-		$curlinfostr = (is_array($curlinfo)) ? implode(' ',$curlinfo) : $curlinfo;
-		if (FALSE !== strpos($curlinfostr,"ASPXAUTH")) {
-			$txresult = 'Auth Ok!';
-			$res = true;
-		}else{
-			$txresult = 'Error:failed to Auth';
-			$res = false;
-		}	
-	}
-
-	return $res;
-}
+$CntSkipNoRDId = 0;
+$CntSkipErrGTI = 0;
 
 //--------------------------------------------------------------------------------------
 //	Получить в Итере remote_id и девайс (rdevice_id) 
@@ -419,6 +345,8 @@ function UpdateRecState($row)
 function ProcessRecord(&$row)
 {
 	global $config;
+	global $CntSkipNoRDId;
+	global $CntSkipErrGTI;
 	$gtires = 0;
 
 	if (empty($row['rticket_id'] )) 
@@ -436,91 +364,38 @@ function ProcessRecord(&$row)
 	if ($gtires >= 0) {
 		if ( empty( $row['ticode1562'] ) OR  !empty( $row['rticket_id'] ) ) {		// Выполняется для всех кроме 1562 без rticket_id
 			if (!$config['options']['skiptransfer']) {								// Во время отладки пропускаем передачу данных в Итеру
-				if(empty( $row['rticket_id']))  {					
-					InsUpdIteraRec($row, true);										// insert
-					UpdateRId($row['ticket_id'], $row['rticket_id'], NULL);			// Обновляем remote_id в нашей базе для всех заявок с данным номером
+				if(empty( $row['rticket_id']))  {	
+					if (!empty($row['rdevice_id'])){								// Если есть rdevice_id
+						InsUpdIteraRec($row, true);										// insert
+						UpdateRId($row['ticket_id'], $row['rticket_id'], NULL);			// Обновляем remote_id в нашей базе для всех заявок с данным номером
+					}else{
+						// Не инсертим, патамучто у нас нет rdevice_id
+						$CntSkipNoRDId++;
+						logger("SKIPPED INSERT to Itera (due to lack of identifier rticket_id).");
+					}
 				}else
 					InsUpdIteraRec($row, false);									// update
 			}else{
 				logger("SKIPPED transmission to Itera (by config).");
 			}	
 		}
-	} else
+	} else {
+		$CntSkipErrGTI++;
 		logger("Process SKIPPED from the fail GetTicketItera.");
+	}
 
 }
 
-
 //--------------------------------------------------------------------------------------
-//	Проверяет, не запущена ли уже копия задачи,
-//  если копий нет, ставит в базе отметку о запуске
+//	Основной цыкла экспорта
 //--------------------------------------------------------------------------------------
-function ChekFoStartPermission()
+function MAIN_LOOP()
 {
 	global $config;
-	$res = false;
-	$sql = "SELECT starttime, TIMESTAMPDIFF(MINUTE, starttime, now()) as extime from batchscriptlog where scriptname='exportitera';";
-    if( FALSE !== ( $dscursor = mysql_query($sql) ) ) {
-    	$dsrows = mysql_num_rows($dscursor);
-    	if ($dsrows>0){
-    		// Есть запись. Значит задача уже запускалась
-    		$dsrow = mysql_fetch_assoc( $dscursor );
-    		// Проверяем, как давно был запуск задачи
-    		if ( is_null($dsrow['extime']) || ($dsrow['extime'] > $config['options']['exectout']) ) {
-    			if (($dsrow['extime'] > $config['options']['exectout']))
-    				logger("StartTime label (".$dsrow['extime']." min ago) out of timeout (".($config['options']['exectout'])." min) !");
-    			// Превыщен лимит. Подразумеваем, что процесс, оставивший пометку в базе, просто звершился крахом, не успев снять пометку из базы
-    			$sql = "UPDATE batchscriptlog SET starttime = now() WHERE scriptname='exportitera'; ";
-    			if( mysql_query($sql) ) {
-					logger("Update table batchscriptlog ");
-	    			$res = true;
-    			}else
-					logger("Can't update table batchscriptlog");
-    		}else{
-				logger("Task already started!");
-    		}
-        }else{ 
-        	// Записей нет, значит уже запущенных задач нет
-  			$sql = "INSERT INTO batchscriptlog (scriptname, starttime) VALUES ('exportitera', now()); ";
-			if( mysql_query($sql) ) {
-    			$res = true;
-				logger("Insert in table batchscriptlog");
-			}
-			else
-				logger("Can't insert in table batchscriptlog");
-		}
-		mysql_free_result($dscursor);
-	}else{
-		logger("Can't read table batchscriptlog");
-	}
-	return $res;
-}
 
-//--------------------------------------------------------------------------------------
-// Удаляет из базы отметку о запуске задачи
-//--------------------------------------------------------------------------------------
-function DeleteStartMarker()
-{
-	$sql = "DELETE FROM batchscriptlog WHERE scriptname='exportitera'";
-	logger("Delete StartMarker from table batchscriptlog");
-	if( FALSE == mysql_query($sql) ) 
-		logger("Can't delete marker from table batchscriptlog");
-}
+	global $CntSkipNoRDId;
+	global $CntSkipErrGTI;
 
-
-//--------------------------------------------------------------------------------------
-//	MAIN LOOP
-//--------------------------------------------------------------------------------------
-$scriptstat = stat(__FILE__);
-$TaskStartTime = time();
-logger( "*****************************************************************************************************************");
-logger( "Start ".__FILE__.' '.VERSION_EXPORTITERA." Build ".date('Y-m-d H:i:s',$scriptstat['mtime']).' Size: '.$scriptstat['size'] );
-//---Open DB connection
-if( ! ( $db = @mysql_connect ( $config['db']['dbserver'], $config['db']['username'], $config['db']['password'] ) ) ) {
-	logger( "Error: failed connected to DB, error: ".mysql_error() );
-	exit(-1);
-}
-mysql_select_db($config['db']['dbname']);
 	$counerAll = 0;
 	$counerDone = 0;
 
@@ -534,82 +409,70 @@ mysql_select_db($config['db']['dbname']);
 	else
 		$daydepth = $config['options']['daydepth'] + 0;
 
-	if (empty($config['options']['exectout'])) 
-		$config['options']['exectout'] = 30;
-
-    if (ChekFoStartPermission()) {
-		//$sql = "SELECT * FROM exportiteralog WHERE IFNULL(isexportdone,0) = 0 AND TIMESTAMPDIFF(DAY, recordtime, now())<=".$daydepth." ORDER BY id ;";
-		$sql = "SELECT exportiteralog.*
-				FROM exportiteralog
-				WHERE IFNULL(isexportdone,0) = 0 
-				  AND ( (recordtime >= DATE_SUB(NOW(), INTERVAL ".$daydepth." DAY)) ";
-		if ($config['options']['manualpermission']) $sql .= " OR (manualcmd = 1)"; 
-		$sql .= ") ORDER BY exportiteralog.id ;";
-		if( FALSE !== ( $cursor = mysql_query($sql) ) ) {
-			$num_rows = mysql_num_rows($cursor);
+	//$sql = "SELECT * FROM exportiteralog WHERE IFNULL(isexportdone,0) = 0 AND TIMESTAMPDIFF(DAY, recordtime, now())<=".$daydepth." ORDER BY id ;";
+	$sql = "SELECT exportiteralog.*
+			FROM exportiteralog
+			WHERE IFNULL(isexportdone,0) = 0 
+			  AND ( (recordtime >= DATE_SUB(NOW(), INTERVAL ".$daydepth." DAY)) ";
+	if ($config['options']['manualpermission']) $sql .= " OR (manualcmd = 1)"; 
+	$sql .= ") ORDER BY exportiteralog.id ;";
+	if( FALSE !== ( $cursor = mysql_query($sql) ) ) {
+		$num_rows = mysql_num_rows($cursor);
 // $num_rows = 0;	// ДЛЯ ОТЛАДКИ !!!!!!
-			logger(mysql_num_rows($cursor).' rows have fetched from exportiteralog for export to Itera');
-			if ($num_rows > 0) {
-				if (LoginForItera()) {
-					while( $row = mysql_fetch_assoc( $cursor ) ) {
+		logger(mysql_num_rows($cursor).' rows have fetched from exportiteralog for export to Itera');
+		if ($num_rows > 0) {
+			while( $row = mysql_fetch_assoc( $cursor ) ) {
 
-						// если попытка отослать заявку уже была, то смотрим когда она была, 
-						// и если не прошло еще достаточно времени, с последней попытки, пропускаем эту заявку
-						if (!empty($row['txattempts'])) {
-							if (!empty($row['txtime'])){
-								$attempttime = strtotime($row['txtime']." +".$attemptsinterval." min");		// вычисляем, с какого времени можно предпринимать следующую попытку
-								if ($attempttime > time()) {
-									//logger("--- [".$row['id']."] skipped (last time ".$row['txtime'].")");
-									continue;
-								}
-							}
+				// если попытка отослать заявку уже была, то смотрим когда она была, 
+				// и если не прошло еще достаточно времени, с последней попытки, пропускаем эту заявку
+				if (!empty($row['txattempts'])) {
+					if (!empty($row['txtime'])){
+						$attempttime = strtotime($row['txtime']." +".$attemptsinterval." min");		// вычисляем, с какого времени можно предпринимать следующую попытку
+						if ($attempttime > time()) {
+							//logger("--- [".$row['id']."] skipped (last time ".$row['txtime'].")");
+							continue;
 						}
-
-						$row['txrequest'] = "";
-						$row['txresult'] = "";
-						$row['txcount'] = 0;
-						$row['txattempts']++;					// увеличиваем счетчик попыток
-
-						logger("--------------------------------------------------------");
-						logger("process exportiteralog record id=".$row['id']." ticode=".$row['ticodelogged']." ticket_id=".$row['ticket_id']." recordtime:".$row['recordtime'].
-							   " rticket_id='".$row['rticket_id']."' ticode1562='".$row['ticode1562']."'");
-
-						ProcessRecord($row);  
-
-						// проапдейтить запись $txresult , count и пр
-						UpdateRecState($row);
-
-						$counerAll++;
-						if (!is_null($row['isexportdone'])) {
-							logger("Export for id ".$row['id'].": Ok");
-							$counerDone++;
-						}else{
-							logger("Export for id ".$row['id'].": Error");
-						}
-
-						$TaskExecTime = time() - $TaskStartTime;
-						if ( $TaskExecTime/60 > $config['options']['exectout']) {
-							logger("Execution time  exceeded (".$config['options']['exectout']." min max). Execution aborted.");
-							break;							// Прерываем выполнение цикла
-						}
-
-					} //while
-				}else{
-					logger("Can't login to Itera server.");
+					}
 				}
-				curl_close( $ch );
-			}
-			mysql_free_result($cursor);	
-			logger("Exported  successfully ".$counerDone." of ".$counerAll." records");
-		}else{
-			logger("Can't read table");
+
+				$row['txrequest'] = "";
+				$row['txresult'] = "";
+				$row['txcount'] = 0;
+				$row['txattempts']++;					// увеличиваем счетчик попыток
+
+				logger("--------------------------------------------------------");
+				logger("process exportiteralog record id=".$row['id']." ticode=".$row['ticodelogged']." ticket_id=".$row['ticket_id']." recordtime:".$row['recordtime'].
+					   " rticket_id='".$row['rticket_id']."' ticode1562='".$row['ticode1562']."'");
+
+				ProcessRecord($row);  
+
+				// проапдейтить запись $txresult , count и пр
+				UpdateRecState($row);
+
+				$counerAll++;
+				if (!is_null($row['isexportdone'])) {
+					logger("Export for id ".$row['id'].": Ok");
+					$counerDone++;
+				}else{
+					logger("Export for id ".$row['id'].": Error");
+				}
+
+			} //while
 		}
-		DeleteStartMarker();
+		mysql_free_result($cursor);	
+		logger("Exported  successfully ".$counerDone." of ".$counerAll." records");
+		logger("SKIPPED (err rdevice_id): ".$CntSkipNoRDId);
+		logger("SKIPPED (no GetTicketItera): ".$CntSkipErrGTI);
 	}else{
-		logger("Haven't start permission. Export is not started.");
+		logger("Can't read table");
 	}
-mysql_close($db);
-$TaskExecTime = time() - $TaskStartTime;
-logger("Done. Execution time ".$TaskExecTime." sec (".round( (time() - $TaskStartTime)/60 , 2)." min).");
+
+} //MAIN_LOOP()
+
+//************************************************************************
+//	Старт службы
+//  Оттуда вызывается MAIN_LOOP()
+//************************************************************************
+MAIN_START();
 
 ?>
