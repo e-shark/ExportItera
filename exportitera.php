@@ -1,5 +1,5 @@
 <?php
-const SCRIPTVERSION = "v.2.0";
+const SCRIPTVERSION = "v.2.1";
 const SCRIPTNAME="exportitera";
 require_once 'ExportIteraLib.php';
 
@@ -7,6 +7,7 @@ $ridtbl = [];
 
 $CntSkipNoRDId = 0;
 $CntSkipErrGTI = 0;
+$CntSkipNoFindInItera = 0;
 
 //--------------------------------------------------------------------------------------
 //	Получить в Итере remote_id и девайс (rdevice_id) 
@@ -19,19 +20,25 @@ function GetTicketItera( &$row )
 	global $config;
 	global $curloptions;
 	global $ch;
+	$dbgStr = "";
 
 	if ( empty($row['rticket_id']) && empty($row['ticode1562']) && empty($row['ticodelogged']) ){
 		if ($config['options']['debug']) logger("Itera GET id Error! Empty rticket_id and ticode1562 and ticodelogged for ticket_id=".$row['ticket_id']);
 		return $res;
 	}
 
-	if ( !empty($row['rticket_id']) )
+	if ( !empty($row['rticket_id']) ){
 		$request = $config['bsmartapi']['url_getticket']."?filter(id)=equals(".$row['rticket_id'].")";
-	else
-		if ( !empty($row['ticode1562']) )
+		$dbgStr = "for rticket_id=".$row['rticket_id'];
+	}else{
+		if ( !empty($row['ticode1562']) ){
 			$request = $config['bsmartapi']['url_getticket']."?filter(no)=equals(".$row['ticode1562'].")";
-		else
+			$dbgStr = "for ticode1562=".$row['ticode1562'];
+		}else{
 			$request = $config['bsmartapi']['url_getticket']."?filter(no)=equals(".$row['ticodelogged'].")";
+			$dbgStr = "for ticodelogged=".$row['ticodelogged'];
+		}
+	}
 
 	$row['txrequest'] .= $request."\n";
 	curl_setopt($ch, CURLOPT_URL, $request);
@@ -57,7 +64,7 @@ function GetTicketItera( &$row )
 		$row['txresult'] .= str_replace("\n", "", mb_substr($result,0,50) )."\n";
 	}
 
-	if ($config['options']['debug']) logger("Itera GET id for ticode1562=".$row['ticode1562']."\n  Request:".$request." Response:".$result."");
+	if ($config['options']['debug']) logger("Itera GET id ".$dbgStr."\n  Request:".$request." Response:".$result."");
 
 	return $res;
 }		
@@ -347,6 +354,8 @@ function ProcessRecord(&$row)
 	global $config;
 	global $CntSkipNoRDId;
 	global $CntSkipErrGTI;
+	global $CntSkipNoFindInItera;
+
 	$gtires = 0;
 
 	if (empty($row['rticket_id'] )) 
@@ -359,6 +368,7 @@ function ProcessRecord(&$row)
 		$gtires = GetTicketItera( $row );											// Пытаемся получить у Itera remote_id для заявки (а так же номер девайса)
 		if ( 1 == $gtires ) 
 			UpdateRId($row['ticket_id'], $row['rticket_id'], $row['rdevice_id']);	// Обновляем remote_id и rdevice_id в нашей базе для всех заявок с данным номером
+		if ( 0 ==$gtires ) $CntSkipNoFindInItera++;
 	}
 
 	if ($gtires >= 0) {
@@ -395,6 +405,11 @@ function MAIN_LOOP()
 
 	global $CntSkipNoRDId;
 	global $CntSkipErrGTI;
+	global $CntSkipNoFindInItera;
+
+	$CntSkipNoRDId = 0;
+	$CntSkipErrGTI = 0;
+	$CntSkipNoFindInItera = 0;
 
 	$counerAll = 0;
 	$counerDone = 0;
@@ -461,8 +476,9 @@ function MAIN_LOOP()
 		}
 		mysql_free_result($cursor);	
 		logger("Exported  successfully ".$counerDone." of ".$counerAll." records");
-		logger("SKIPPED (err rdevice_id): ".$CntSkipNoRDId);
-		logger("SKIPPED (no GetTicketItera): ".$CntSkipErrGTI);
+		logger("SKIPPED (no rdevice_id): ".$CntSkipNoRDId);
+		logger("SKIPPED (no find in Itera): ".$CntSkipNoFindInItera);
+		logger("SKIPPED (err GetTicketItera): ".$CntSkipErrGTI);
 	}else{
 		logger("Can't read table");
 	}
