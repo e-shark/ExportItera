@@ -49,7 +49,8 @@ function GetIteraTicketsPage($Page, $onlyRejected = false)
 	if (empty($DayDepth)) $DayDepth = 1;
 	$DateFrom = date('Y-m-d', strtotime("now -".$DayDepth." day"));
 	if ($onlyRejected)	
-		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(return_count)=greaterthan(0)&filter(status_id)=equals(1)";	
+//bgt 05.04.2019 window depth for rejected tickets must be determined on status_changed Itera date (changed created - status_changed)
+		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(status_changed)=After(".$DateFrom.")&filter(return_count)=greaterthan(0)&filter(status_id)=equals(1)";	
 	else
 		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(source_id)=in(2,3,20,21,22,24,25,26,27,28,29,30,31,32)"; 	
 	curl_setopt($ch, CURLOPT_URL, $request);
