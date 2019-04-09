@@ -52,7 +52,7 @@ function GetIteraTicketsPage($Page, $onlyRejected = false)
 //bgt 05.04.2019 window depth for rejected tickets must be determined on status_changed Itera date (changed created - status_changed)
 		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(status_changed)=After(".$DateFrom.")&filter(return_count)=greaterthan(0)&filter(status_id)=equals(1)";	
 	else
-		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(source_id)=in(2,3,20,21,22,24,25,26,27,28,29,30,31,32)"; 	
+		$request = $config['bsmartapi']['url_getticket']."?sort(id)=desc&pageSize=".RECSPERPAGE."&page=".$Page."&filter(created)=After(".$DateFrom.")&filter(source_id)=in(2,3,9,20,21,22,24,25,26,27,28,29,30,31,32)"; 	
 	curl_setopt($ch, CURLOPT_URL, $request);
 	curl_setopt_array($ch, $curloptions);
 	$result = curl_exec($ch);
@@ -92,7 +92,7 @@ function GetIteraTicketCommentLast($ITID)
 	if ($config['options']['debuglog']) logger("try read comment: ".$request)	;
 	$result = curl_exec($ch);
 	if(FALSE===$result)
-		logger('Error:failed request page'.$Page);
+		logger('Error:failed request Comment '.$request);
 	else {
 		$result = mb_convert_encoding($result,'UTF-8');
 		$jsonAnswer = json_decode($result,true);
@@ -103,7 +103,7 @@ function GetIteraTicketCommentLast($ITID)
 				$res = $jsonAnswer['Records'][0]['description'];
 //logger("****************************************************[\n".json_encode($res)."\n]");
 				$cnt = count($res);
-				logger("Recive ".$cnt." comments for ITID".$ITID." ");
+				if ($config['options']['debuglog']) logger("Recive ".$cnt." comments for ITID".$ITID." ");
 			}
 		}
 	}
@@ -227,6 +227,37 @@ function GetOriginator($i_userid)
 	return $result;
 }
 
+//--------------------------------------------------------------------------------------
+//	Получить данные юзера (заявителя) из Itera по ID тикета итеры	
+//--------------------------------------------------------------------------------------
+function GetDeclarerItera($t_id)
+{
+	$result = [];
+	global $config;
+	global $curloptions;
+	global $ch;
+
+	$request = $config['bsmartapi']['url_getdeclarer']."?filter(ticket_id)=equals({$t_id})"; 	
+	curl_setopt($ch, CURLOPT_URL, $request);
+	curl_setopt_array($ch, $curloptions);
+	if ($config['options']['debuglog']) logger("try read Declarer: ".$request)	;
+	$result = curl_exec($ch);
+	if(FALSE===$result)
+		logger('Error:failed request Declarer '.$request);
+	else {
+		$result = mb_convert_encoding($result,'UTF-8');
+		$jsonAnswer = json_decode($result,true);
+		if(is_array($jsonAnswer)) {
+			$cnt = $jsonAnswer['TotalRecordsCount'];
+			if ( is_array($jsonAnswer['Records']) && ($cnt > 0) ) {
+				$res = $jsonAnswer['Records'][0];
+				//$cnt = count($res);
+				if ($config['options']['debuglog']) logger("Recive Declarer for ticket ".$t_id." : id ".$res['id']);
+			}
+		}
+	}
+	return $result;
+}
 
 //--------------------------------------------------------------------------------------
 //	Записать в лог запись ticket, полученную от Itera и запись, которую я сформирую на основе этих данных
@@ -256,6 +287,10 @@ function LogRecord($Rec,$tirec)
 	$str .= "'tioosbegin':".$tirec['tioosbegin']."	=	'turnon_time':".$Rec['turnon_time'].$rn;
 	$str .= "'tioosend':".$tirec['tioosend']."	=	'turnoff_time':".$Rec['turnoff_time'].$rn;
 	$str .= "'tiopstatus':".$tirec['tiopstatus']."	=	'tiopstatus':".$Rec['tiopstatus'].$rn;
+
+	$str .= "'ticaller':".$tirec['ticaller'];
+	$str .= "'ticallerphone':".$tirec['ticallerphone'];
+	$str .= "'ticalleraddress':".$tirec['ticalleraddress'];
 
 	logger($str);
 }
@@ -382,7 +417,7 @@ function ProcessIteraTickets($IteraRecs)
 				if (SourceIs9Prg($Rec['source_id'])) {								// елс источник itera - 9 программ
 					$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus9PRG'],$Rec['status_id'] );
 					$tirec['ticoderemote'] = $Rec['no'];							// Добавлено по просьбе Савченко Дмитрия 22.02.2019
-					$tirec['ticaller'] = $Rec['ticket_source_name'];
+					//$tirec['ticaller'] = $Rec['ticket_source_name'];
 				}else
 					$tirec['tistatus'] = GetCrossVal( $config['cross']['tistatus'],$Rec['status_id'] );
 			}
@@ -394,7 +429,17 @@ function ProcessIteraTickets($IteraRecs)
 				$tirec['tioriginator_id'] = $getres['id']; 							// это для ticketlog
 				$tirec['tioriginator'] = $getres['fio']; 
 				$tirec['tioriginatordesk_id'] = $getres['division_id'];
+			}else{
+				$tirec['tioriginator'] = $Rec['creator_organization_name'].': '.$Rec['created_by_user_name'].' '.$Rec['created_by_user_phone']; 
 			}
+
+			$getdeclarer = GetDeclarerItera($Rec['id']);
+			if (!empty($getdeclarer)) {
+				$tirec['ticaller'] = $getdeclarer['name'];
+				$tirec['ticallerphone'] = $getdeclarer['phone'];
+				$tirec['ticalleraddress'] = $getdeclarer['address'];
+			}
+
 
 			$tirec['tiplannedtime'] = $Rec['turnon_plan_time'];
 			$tirec['tiplannedtimenew'] = $Rec['turnon_plan_time'];

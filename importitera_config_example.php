@@ -28,6 +28,7 @@ $config = [
 		'url_login' 	=> 'http://kads.kspim.kharkov.ua/Account/Login',
 		'url_getticket' => 'http://kads.kspim.kharkov.ua/ds/Ticket',
 		'url_getticketcomment' => 'http://kads.kspim.kharkov.ua/ds/TicketComment',
+		'url_getdeclarer' => 'http://kads.kspim.kharkov.ua/ds/TicketDeclarer',
 	],
 
 	// Кросс таблицы для перевода велечин базы Itera, в величины диспетчерской INTEP
