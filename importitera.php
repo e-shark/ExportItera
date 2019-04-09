@@ -232,7 +232,7 @@ function GetOriginator($i_userid)
 //--------------------------------------------------------------------------------------
 function GetDeclarerItera($t_id)
 {
-	$result = [];
+	$res = [];
 	global $config;
 	global $curloptions;
 	global $ch;
@@ -256,7 +256,7 @@ function GetDeclarerItera($t_id)
 			}
 		}
 	}
-	return $result;
+	return $res;
 }
 
 //--------------------------------------------------------------------------------------
@@ -288,9 +288,9 @@ function LogRecord($Rec,$tirec)
 	$str .= "'tioosend':".$tirec['tioosend']."	=	'turnoff_time':".$Rec['turnoff_time'].$rn;
 	$str .= "'tiopstatus':".$tirec['tiopstatus']."	=	'tiopstatus':".$Rec['tiopstatus'].$rn;
 
-	$str .= "'ticaller':".$tirec['ticaller'];
-	$str .= "'ticallerphone':".$tirec['ticallerphone'];
-	$str .= "'ticalleraddress':".$tirec['ticalleraddress'];
+	$str .= "'ticaller':".$tirec['ticaller'].$rn;
+	$str .= "'ticallerphone':".$tirec['ticallerphone'].$rn;
+	$str .= "'ticalleraddress':".$tirec['ticalleraddress'].$rn;
 
 	logger($str);
 }
