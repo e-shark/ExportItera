@@ -206,11 +206,12 @@ function InsUpdIteraRec(&$row, $fInsert = false)
 	}
 	
 	if($fInsert){	
+		$postdata['@time'] = $row[ 'rcreated' ];
 	}else{
 		// Edit existing
 		$iteraAPIurl .= "?id=".$row[ 'rticket_id' ];	
-		$postdata['@time'] = $row[ 'recordtime' ];
 		$postdata['@user_id'] = $row[ 'ruser_id' ];
+		$postdata['@time'] = $row[ 'recordtime' ];
 		//unset($postdata['@device_id']);
 		//unset($postdata['@created']);
 	}
