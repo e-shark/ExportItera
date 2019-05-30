@@ -204,17 +204,34 @@ function FindIteraUserByRID($UserTable, $UserId){
 
 //--------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------
-function GetFullName($lastname, $firstname, $patronymic)
+function GetFullNameFromRec($rec)
 {
 	$res = "";
-	if (!empty($lastname)) $res .= $lastname;
-	if (!empty($firstname)) {
-		if (!empty($res)) $res .= " ";
-		$res .= $firstname;
-	}
-	if (!empty($patronymic)) {
-		if (!empty($res)) $res .= " ";
-		$res .= $patronymic;
+	switch($rec['occupation_id']){
+		case 3:
+			$res = "Электромеханик_".$rec['id'];
+			break;
+		case 4:
+			$res = "Электромеханик_ЛАС_".$rec['id'];
+			break;
+
+		case 25:
+			$res = "Электромонтер_".$rec['id'];
+			break;
+		case 26:
+			$res = "Электромонтер_ЛАС_".$rec['id'];
+			break;
+			
+		default:
+			if (!empty($rec['lastname'])) $res .= $rec['lastname'];
+			if (!empty($rec['firstname'])) {
+				if (!empty($res)) $res .= " ";
+				$res .= $rec['firstname'];
+			}
+			if (!empty($rec['patronymic'])) {
+				if (!empty($res)) $res .= " ";
+				$res .= $rec['patronymic'];
+			}
 	}
 	return $res;
 }
@@ -280,7 +297,7 @@ function IteraUserEdit($BDRec, $IteraRec = NULL)
 	$postdata=[			
 		'@login' => "user".$BDRec['id'],
 		'@passhash' => "user".$BDRec['id'],
-		'@name' => GetFullName( $BDRec['lastname'], $BDRec['firstname'], $BDRec['patronymic'] ),
+		'@name' => GetFullNameFromRec( $BDRec ),
 		'@organization_id' => 1,			// - идентификатор организации, ХГЛ - 1
 		//'@areas' => 10,						// - ОДС На текущий момент можно передавать @areas=10
 		'@is_active' => 0+$BDRec['isemployed'],
@@ -376,18 +393,20 @@ RecProcLabel1:
 	$IU = NULL;
 	if (empty($rec['remoteid'])){
 		// Если нет RID, пытаемя найти такого юзера в Итере по ФИО
-		$IU = FindIteraUserByFullName( $IteraUserTable, GetFullName( $rec['lastname'], $rec['firstname'], $rec['patronymic'] ) );
+		$IU = FindIteraUserByFullName( $IteraUserTable, GetFullNameFromRec( $rec ) );
 		if (empty($IU)) {
 			// Юзер не найден в Итере
 			// INSERT юзера 
-			if ($config['options']['debug']) logger("try to Itera INSERT  (id:".$rec['id'].")");
-			$rid = IteraUserEdit($rec);
-			if (!empty($rid)){
-				if ($config['options']['debug']) logger("Inserting Ok. Updating BD for  id:".$rec['id'].", set remoteid=".$rid);
-				UpdateBDUser($rec['id'], $rid);
-			}else{
-				$CountInsFail++;
-				logger('FAIL Itera ISERT for '.$rec['lastname']." ".$rec['firstname']." ".$rec['patronymic']." id:".$rec['id']);
+			if (1 == $rec['isemployed']) {																// Инсертим только ныне работающих юзеров
+				if ($config['options']['debug']) logger("try to Itera INSERT  (id:".$rec['id'].")");
+				$rid = IteraUserEdit($rec);
+				if (!empty($rid)){
+					if ($config['options']['debug']) logger("Inserting Ok. Updating BD for  id:".$rec['id'].", set remoteid=".$rid);
+					UpdateBDUser($rec['id'], $rid);
+				}else{
+					$CountInsFail++;
+					logger('FAIL Itera ISERT for '.$rec['lastname']." ".$rec['firstname']." ".$rec['patronymic']." id:".$rec['id']);
+				}
 			}
 		}else{
 			// Юзер найден в Итере по ФИО.
@@ -443,7 +462,7 @@ mysql_select_db($config['db']['dbname']);
 		if (LoginForItera()) {
 
 			$sql = "SELECT * FROM employee; ";
-			//$sql = "SELECT * FROM employee WHERE id = 169 ; "; 			// ! ! !   ДЛЯ ОТЛАДКИ
+			//$sql = "SELECT * FROM employee WHERE id = 7 or id = 48; ";   // ! ! ! !   ДЛЯ ОТЛАДКИ  ! ! ! ! !
 
 			$IteraUserTable = GetIteraUsers();
 			if (NULL != $IteraUserTable){
