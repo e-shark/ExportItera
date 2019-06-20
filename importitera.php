@@ -302,7 +302,7 @@ function SourceIs9Prg($SourceId)
 {
 	$res = false;
 	if ( (($SourceId >=20) && ($SourceId <=22)) ||
-		 (($SourceId >=24) && ($SourceId <=32))) $res = true;
+		 (($SourceId >=24) && ($SourceId <32))) $res = true;
 	return $res;
 }
 
@@ -383,6 +383,8 @@ function ProcessIteraTickets($IteraRecs)
 			// У нас еще нет такой заявки
 			if  ( in_array($Rec['status_id'], [11,12,13])) continue;		// Такие заявки не импортируем
 			if (SourceIs9Prg($Rec['source_id'])) continue;					// Заявки из 9 программ не импортируем
+//bgt 20.06.2019 ТО ВДЭС - temporary
+			if (9 == $Rec['source_id'] && 2157 == $Rec['malfunction_id']) continue;					// Заявки из ТО ВДЭС не импортируем пока не наладим наш код 
 
 			// Далее шаманство по трансформации данных из Itera в нашу заявку
 			$tirec = [];
@@ -397,8 +399,9 @@ function ProcessIteraTickets($IteraRecs)
 				$tirec['tifacility_id']	= $getres['faid'];
 				$tirec['tidivision_id']	= $getres['eldivision_id'];
 			}
-
-			$tirec['tiaddress'] = $Rec['address'];
+//bgt 23.04.19 bugfix for street names with apostrofe 
+//			$tirec['tiaddress'] = $Rec['address'];
+			$tirec['tiaddress'] = str_replace("'","\'",$Rec['address']);
 
 			$tirec['tioostype_id'] = GetCrossVal( $config['cross']['malfunction'], $Rec['malfunction_id'] );
 			$tirec['tiobject_id']  = GetCrossVal( $config['cross']['malfunction_type'], $Rec['malfunction_type_id'] );
@@ -408,8 +411,9 @@ function ProcessIteraTickets($IteraRecs)
 			$tirec['tipriority'] = GetCrossVal( $config['cross']['tipriority'],$Rec['priority_id'] );
 
 			$tirec['ticoderemote'] = $Rec['id'];
-
-			if ( 32 == $Rec['source_id'] ) {										// елс источник itera - техническое обслуживание
+//bgt 20.06.2019 ТО ВДЭС 
+//			if ( 32 == $Rec['source_id']) {										// елс источник itera - техническое 			
+			if ( 32 == $Rec['source_id'] || (9 == $Rec['source_id'] && 2157 == $Rec['malfunction_id'])) {										// елс источник itera - техническое обслуживание
 				$tirec['tistatus'] = 'TO_ASSIGN'; 
 				if (empty($tirec['tidivision_id']))									// если не удалось привязать id подразделения, берем его по району
 					$tirec['tidivision_id'] = FindDivisionID($tirec['tiregion']);
@@ -437,7 +441,9 @@ function ProcessIteraTickets($IteraRecs)
 			if (!empty($getdeclarer)) {
 				$tirec['ticaller'] = $getdeclarer['name'];
 				$tirec['ticallerphone'] = $getdeclarer['phone'];
-				$tirec['ticalleraddress'] = $getdeclarer['address'];
+//bgt 23.04.19 bugfix for street names with apostrofe 
+//				$tirec['ticalleraddress'] = $getdeclarer['address'];
+				$tirec['ticalleraddress'] = str_replace("'","\'",$getdeclarer['address']);
 			}
 
 
@@ -445,7 +451,9 @@ function ProcessIteraTickets($IteraRecs)
 			$tirec['tiplannedtimenew'] = $Rec['turnon_plan_time'];
 
 			$tirec['ticalltype'] = GetCrossVal( $config['cross']['source'],$Rec['source_id'] );
-
+//bgt 20.06.2019 источник заявок ТО ВДЭС - Вайбер, а выделяются они по malfunction_id
+			if($tirec['ticalltype'] == 'Itera9' && $Rec['malfunction_id'] == 2157)
+				($tirec['ticalltype'] == 'Itera33';
 			$tirec['tiopenedtime'] = $Rec['created'];
 
 			if (!empty($Rec['tioosbegin'])) $tirec['rturnon_time'] = $Rec['turnon_time'];
